@@ -123,9 +123,9 @@ struct BarConfig: Codable, Identifiable, Equatable {
     
     static func defaultBars() -> [BarConfig] {
         [
-            BarConfig(name: "seconds", rule: "60s", color: "#80C4FFCC", thickness: 4, segmented: false, notify: false),
-            BarConfig(name: "minutes", rule: "60m", color: "#FFD580CC", thickness: 4, segmented: false, notify: false),
-            BarConfig(name: "day", rule: "16h 8h", color: "#FF80ABCC", thickness: 4, segmented: false, notify: false),
+            BarConfig(name: "day", rule: "16h 8h", color: "#FF80ABCC", thickness: 3, segmented: false, notify: false),
+            BarConfig(name: "minutes", rule: "60m", color: "#FFD580CC", thickness: 3, segmented: false, notify: false),
+            BarConfig(name: "seconds", rule: "60s", color: "#80C4FFCC", thickness: 3, segmented: false, notify: false),
         ]
     }
 }
@@ -190,15 +190,15 @@ struct AppConfig: Equatable {
       seconds:
         rule: "60s"
         color: "#80C4FFCC"
-        thickness: 4
+        thickness: 3
       minutes:
         rule: "60m"
         color: "#FFD580CC"
-        thickness: 4
+        thickness: 3
       day:
         rule: "16h 8h"
         color: "#FF80ABCC"
-        thickness: 4
+        thickness: 3
     
     animation:
       idle_glow: true
@@ -226,12 +226,12 @@ struct AppConfig: Equatable {
                     let rule = barMapping.first(where: { $0.key == Node("rule") })?.value.string ?? "60s"
                     let color = barMapping.first(where: { $0.key == Node("color") })?.value.string ?? "#80C4FFCC"
                     let thicknessVal = barMapping.first(where: { $0.key == Node("thickness") })?.value
-                    let thickness = yamlCGFloat(thicknessVal?.int ?? thicknessVal?.float) ?? 4
+                    let thickness = yamlCGFloat(thicknessVal?.int ?? thicknessVal?.float) ?? 3
                     let segmented = barMapping.first(where: { $0.key == Node("segmented") })?.value.bool ?? false
                     let notify = barMapping.first(where: { $0.key == Node("notify") })?.value.bool ?? false
                     bars.append(BarConfig(name: name, rule: rule, color: color, thickness: thickness, segmented: segmented, notify: notify))
                 } else {
-                    bars.append(BarConfig(name: name, rule: "60s", color: "#80C4FFCC", thickness: 4, segmented: false, notify: false))
+                    bars.append(BarConfig(name: name, rule: "60s", color: "#80C4FFCC", thickness: 3, segmented: false, notify: false))
                 }
             }
         }

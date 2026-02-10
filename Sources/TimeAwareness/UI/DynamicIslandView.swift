@@ -372,6 +372,7 @@ struct DynamicIslandView: View {
                 contentForState
             }
             .frame(width: pillWidth, height: pillHeight)
+            .clipShape(DynamicIslandShape(bottomRadius: bottomRadius, topFlare: topFlare))
             .contentShape(Rectangle())
             .animation(.spring(
                 response: viewModel.animationConfig.expandSpringResponse,
