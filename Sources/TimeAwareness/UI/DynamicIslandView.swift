@@ -32,7 +32,12 @@ class DynamicIslandViewModel: ObservableObject {
     
     private var timer: Timer?
     private var rules: [String: TimeRule] = [:]
+    private var barConfigMap: [String: BarConfig] = [:]  // O(1) lookup
     private var notificationDismissWork: DispatchWorkItem?
+    /// True while an auto-notification hover is active (prevents mouse-leave from dismissing)
+    private(set) var isNotifying: Bool = false
+    /// Tracks the current day-of-year to detect day changes for day-based bars
+    private var lastDayOfYear: Int = -1
     private lazy var timeFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "HH:mm:ss"
@@ -70,13 +75,18 @@ class DynamicIslandViewModel: ObservableObject {
         rules = [:]
         cachedColors = [:]
         barUnits = [:]
+        barConfigMap = [:]
         for bar in config.bars {
             cachedColors[bar.name] = ColorParser.parse(bar.color)
+            barConfigMap[bar.name] = bar
             if let rule = TimeRule.parse(bar.rule) {
                 rules[bar.name] = rule
                 barUnits[bar.name] = rule.unit
             }
         }
+        
+        // Reset day tracker so day-based bars update immediately
+        lastDayOfYear = -1
         
         // Immediately update progress
         updateProgress()
@@ -157,22 +167,32 @@ class DynamicIslandViewModel: ObservableObject {
     
     private func updateProgress() {
         let now = Date()
+        let calendar = Calendar.current
         
         // Update current time string
         let newTimeString = timeFormatter.string(from: now)
         
+        // Detect day change for day-based bar optimization
+        let currentDayOfYear = calendar.ordinality(of: .day, in: .year, for: now) ?? 0
+        let dayChanged = currentDayOfYear != lastDayOfYear
+        
         // Per-bar diffing: only update bars whose displayed value actually changed.
-        // Segmented bars use 20-bucket granularity (5%), continuous bars use 100-bucket (1%).
-        // This prevents a continuous bar's updates from forcing a segmented bar to re-render.
         var updates: [String: Double] = [:]
         for (name, rule) in rules {
+            // Skip day-based bars unless the day actually changed
+            if rule.isDayBased && !dayChanged { continue }
+            
             let newValue = rule.progress(at: now)
             let oldValue = barProgresses[name] ?? -1
-            let isSegmented = bars.first(where: { $0.name == name })?.segmented ?? false
-            let granularity = isSegmented ? 20 : 100
+            let isSegmented = barConfigMap[name]?.segmented ?? false
+            let granularity = isSegmented ? (barConfigMap[name]?.segments ?? 20) : 100
             if Int(newValue * Double(granularity)) != Int(oldValue * Double(granularity)) {
                 updates[name] = newValue
             }
+        }
+        
+        if dayChanged {
+            lastDayOfYear = currentDayOfYear
         }
         
         let timeChanged = newTimeString != currentTimeString
@@ -185,13 +205,10 @@ class DynamicIslandViewModel: ObservableObject {
             }
             
             // Check for notification: any bar with notify=true just completed a cycle.
-            // Cyclic bars (seconds, minutes) wrap from ~0.98 → ~0.0, never reaching 1.0.
-            // Detect cycle completion by checking if progress drops significantly (wrap-around).
-            // Non-cyclic bars (hours, days) can actually reach 1.0.
             var shouldNotify = false
             for (name, value) in updates {
                 let oldValue = self.barProgresses[name] ?? -1
-                let bar = self.bars.first(where: { $0.name == name })
+                let bar = self.barConfigMap[name]
                 if bar?.notify == true && oldValue >= 0 {
                     let cycleCompleted = (oldValue - value) > 0.5  // wrap-around detected
                     let reachedFull = value >= 1.0 && oldValue < 1.0
@@ -206,12 +223,16 @@ class DynamicIslandViewModel: ObservableObject {
                 // Cancel any pending dismiss
                 self.notificationDismissWork?.cancel()
                 
+                self.isNotifying = true
                 self.transitionTo(.hovered)
                 
                 // Auto-dismiss after 3 seconds
                 let work = DispatchWorkItem { [weak self] in
-                    guard let self = self, self.state == .hovered else { return }
-                    self.transitionTo(.idle)
+                    guard let self = self else { return }
+                    self.isNotifying = false
+                    if self.state == .hovered {
+                        self.transitionTo(.idle)
+                    }
                 }
                 self.notificationDismissWork = work
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: work)

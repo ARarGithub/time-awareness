@@ -16,9 +16,6 @@ struct TimeBarView: View {
     @State private var animatedProgress: Double = 0
     @State private var glowPulse: Bool = false
     
-    /// Number of discrete segments for segmented bars
-    private let segmentCount = 20
-    
     /// Adapt animation to the bar's time unit:
     /// - seconds: short linear animation to avoid perpetual catch-up
     /// - others: easeInOut with configured duration
@@ -87,12 +84,12 @@ struct TimeBarView: View {
     private var segmentedBar: some View {
         GeometryReader { geo in
             let gap: CGFloat = 1.5
-            let totalGaps = CGFloat(segmentCount - 1) * gap
-            let segWidth = (geo.size.width - totalGaps) / CGFloat(segmentCount)
-            let filledCount = Int(round(animatedProgress * Double(segmentCount)))
+            let totalGaps = CGFloat(barConfig.segments - 1) * gap
+            let segWidth = (geo.size.width - totalGaps) / CGFloat(barConfig.segments)
+            let filledCount = Int(round(animatedProgress * Double(barConfig.segments)))
             
             HStack(spacing: gap) {
-                ForEach(0..<segmentCount, id: \.self) { i in
+                ForEach(0..<barConfig.segments, id: \.self) { i in
                     let isFilled = i < filledCount
                     RoundedRectangle(cornerRadius: 1.5)
                         .fill(isFilled ? barColor : Color.white.opacity(0.06))

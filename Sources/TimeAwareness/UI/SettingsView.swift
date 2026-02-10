@@ -24,121 +24,78 @@ struct SettingsView: View {
                 Spacer()
             }
             
-            // Display settings row
-            HStack(spacing: 12) {
-                HStack(spacing: 4) {
-                    Text("Idle Len")
-                        .font(.system(size: 10, weight: .medium, design: .rounded))
-                        .foregroundColor(.white.opacity(0.5))
-                    TextField("200", text: Binding(
-                        get: { String(Int(editableBarLength)) },
-                        set: { editableBarLength = CGFloat(Int($0) ?? 200) }
-                    ))
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.8))
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 2)
-                        .frame(width: 44)
-                        .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
-                        .multilineTextAlignment(.center)
+            // Display section
+            VStack(spacing: 4) {
+                HStack {
+                    Text("DISPLAY")
+                        .font(.system(size: 8, weight: .bold, design: .rounded))
+                        .foregroundColor(.white.opacity(0.3))
+                        .tracking(1)
+                    Spacer()
                 }
-                
-                HStack(spacing: 4) {
-                    Text("Expand Len")
-                        .font(.system(size: 10, weight: .medium, design: .rounded))
-                        .foregroundColor(.white.opacity(0.5))
-                    TextField("300", text: Binding(
-                        get: { String(Int(editableBarLengthExpanded)) },
-                        set: { editableBarLengthExpanded = CGFloat(Int($0) ?? 300) }
-                    ))
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.8))
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 2)
-                        .frame(width: 44)
-                        .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
-                        .multilineTextAlignment(.center)
+                HStack(spacing: 10) {
+                    settingsField("Idle", value: $editableBarLength, placeholder: "200", width: 40)
+                    settingsField("Expand", value: $editableBarLengthExpanded, placeholder: "300", width: 40)
+                    settingsField("Name", value: $editableNameSize, placeholder: "10", width: 32)
+                    Spacer()
                 }
-                
-                HStack(spacing: 4) {
-                    Text("Name Size")
-                        .font(.system(size: 10, weight: .medium, design: .rounded))
-                        .foregroundColor(.white.opacity(0.5))
-                    TextField("10", text: Binding(
-                        get: { String(Int(editableNameSize)) },
-                        set: { editableNameSize = CGFloat(Int($0) ?? 10) }
-                    ))
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.8))
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 2)
-                        .frame(width: 36)
-                        .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
-                        .multilineTextAlignment(.center)
-                }
-                
-                Spacer()
             }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.03)))
             
-            // Time display settings row
-            HStack(spacing: 12) {
-                HStack(spacing: 4) {
-                    Text("Time Size")
-                        .font(.system(size: 10, weight: .medium, design: .rounded))
-                        .foregroundColor(.white.opacity(0.5))
-                    TextField("14", text: Binding(
-                        get: { String(Int(editableTimeTextSize)) },
-                        set: { editableTimeTextSize = CGFloat(Int($0) ?? 14) }
-                    ))
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.8))
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 2)
-                        .frame(width: 36)
-                        .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
-                        .multilineTextAlignment(.center)
+            // Time section
+            VStack(spacing: 4) {
+                HStack {
+                    Text("TIME")
+                        .font(.system(size: 8, weight: .bold, design: .rounded))
+                        .foregroundColor(.white.opacity(0.3))
+                        .tracking(1)
+                    Spacer()
                 }
-                
-                HStack(spacing: 4) {
-                    Text("Time Format")
-                        .font(.system(size: 10, weight: .medium, design: .rounded))
-                        .foregroundColor(.white.opacity(0.5))
-                    Button(action: {
-                        editableTimeFormat = editableTimeFormat == "24h" ? "12h" : "24h"
-                    }) {
-                        Text(editableTimeFormat)
-                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                            .foregroundColor(.cyan.opacity(0.9))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
+                HStack(spacing: 10) {
+                    settingsField("Size", value: $editableTimeTextSize, placeholder: "14", width: 32)
+                    
+                    HStack(spacing: 3) {
+                        Text("Format")
+                            .font(.system(size: 9, weight: .medium, design: .rounded))
+                            .foregroundColor(.white.opacity(0.45))
+                        Button(action: {
+                            editableTimeFormat = editableTimeFormat == "24h" ? "12h" : "24h"
+                        }) {
+                            Text(editableTimeFormat)
+                                .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                                .foregroundColor(.cyan.opacity(0.9))
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
-                }
-                
-                HStack(spacing: 4) {
-                    Text("Seconds")
-                        .font(.system(size: 10, weight: .medium, design: .rounded))
-                        .foregroundColor(.white.opacity(0.5))
-                    Button(action: {
-                        editableTimeShowSeconds.toggle()
-                    }) {
-                        Text(editableTimeShowSeconds ? "ON" : "OFF")
-                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                            .foregroundColor(editableTimeShowSeconds ? .cyan.opacity(0.9) : .white.opacity(0.4))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
+                    
+                    HStack(spacing: 3) {
+                        Text("Sec")
+                            .font(.system(size: 9, weight: .medium, design: .rounded))
+                            .foregroundColor(.white.opacity(0.45))
+                        Button(action: {
+                            editableTimeShowSeconds.toggle()
+                        }) {
+                            Text(editableTimeShowSeconds ? "ON" : "OFF")
+                                .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                                .foregroundColor(editableTimeShowSeconds ? .cyan.opacity(0.9) : .white.opacity(0.4))
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
+                    
+                    Spacer()
                 }
-                
-                Spacer()
             }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.03)))
             
             // Bar editor list (headers + fields in same container for alignment)
             ScrollView(.vertical, showsIndicators: false) {
@@ -215,6 +172,29 @@ struct SettingsView: View {
             editableTimeTextSize = viewModel.timeTextSize
             editableTimeFormat = viewModel.timeFormat
             editableTimeShowSeconds = viewModel.timeShowSeconds
+        }
+    }
+    
+    // MARK: - Reusable Settings Field
+    
+    @ViewBuilder
+    private func settingsField(_ label: String, value: Binding<CGFloat>, placeholder: String, width: CGFloat) -> some View {
+        HStack(spacing: 3) {
+            Text(label)
+                .font(.system(size: 9, weight: .medium, design: .rounded))
+                .foregroundColor(.white.opacity(0.45))
+            TextField(placeholder, text: Binding(
+                get: { String(Int(value.wrappedValue)) },
+                set: { value.wrappedValue = CGFloat(Int($0) ?? Int(placeholder) ?? 0) }
+            ))
+                .textFieldStyle(.plain)
+                .font(.system(size: 9, design: .monospaced))
+                .foregroundColor(.white.opacity(0.8))
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
+                .frame(width: width)
+                .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
+                .multilineTextAlignment(.center)
         }
     }
     
@@ -310,6 +290,22 @@ struct SettingsView: View {
             .buttonStyle(.plain)
             .frame(width: 20)
             
+            // Segment count (only shown when segmented)
+            if editableBars[index].segmented {
+                TextField("20", text: Binding(
+                    get: { String(editableBars[index].segments) },
+                    set: { editableBars[index].segments = max(2, Int($0) ?? 20) }
+                ))
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundColor(.cyan.opacity(0.7))
+                    .padding(.horizontal, 3)
+                    .padding(.vertical, 2)
+                    .frame(width: 28)
+                    .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
+                    .multilineTextAlignment(.center)
+            }
+            
             // Notify toggle
             Button(action: {
                 editableBars[index].notify.toggle()
@@ -343,11 +339,12 @@ struct SettingsView: View {
     private func addBar() {
         let newBar = BarConfig(
             name: "bar_\(editableBars.count)",
-            rule: "60s",
-            color: "#80C4FFCC",
-            thickness: 4,
-            segmented: false,
-            notify: false
+            rule: Defaults.barRule,
+            color: Defaults.barColor,
+            thickness: Defaults.barThickness,
+            segmented: Defaults.barSegmented,
+            segments: Defaults.barSegments,
+            notify: Defaults.barNotify
         )
         editableBars.append(newBar)
     }

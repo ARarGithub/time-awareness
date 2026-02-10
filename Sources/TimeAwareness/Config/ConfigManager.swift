@@ -108,6 +108,34 @@ private func yamlDouble(_ value: Any?) -> Double? {
     return nil
 }
 
+// MARK: - Centralized Defaults
+
+/// Single source of truth for all default values.
+/// Change a value here and it propagates everywhere.
+enum Defaults {
+    // Bar
+    static let barRule = "60s"
+    static let barColor = "#80C4FFCC"
+    static let barThickness: CGFloat = 3
+    static let barSegmented = false
+    static let barSegments = 20
+    static let barNotify = false
+    
+    // Display
+    static let barLength: CGFloat = 200
+    static let barLengthExpanded: CGFloat = 300
+    static let nameSize: CGFloat = 20
+    static let timeTextSize: CGFloat = 24
+    static let timeFormat = "24h"
+    static let timeShowSeconds = true
+    
+    // Animation
+    static let idleGlow = true
+    static let expandSpringResponse = 0.45
+    static let expandSpringDamping = 0.68
+    static let barAnimationDuration = 1.0
+}
+
 // MARK: - Data Models
 
 struct BarConfig: Codable, Identifiable, Equatable {
@@ -118,14 +146,19 @@ struct BarConfig: Codable, Identifiable, Equatable {
     var thickness: CGFloat
     /// When true, renders as discrete segments instead of a continuous bar
     var segmented: Bool
+    /// Number of segments when segmented mode is enabled
+    var segments: Int
     /// When true, auto-expands to hovered state when bar reaches 100%
     var notify: Bool
     
     static func defaultBars() -> [BarConfig] {
         [
-            BarConfig(name: "day", rule: "16h 8h", color: "#FF80ABCC", thickness: 3, segmented: false, notify: false),
-            BarConfig(name: "minutes", rule: "60m", color: "#FFD580CC", thickness: 3, segmented: false, notify: false),
-            BarConfig(name: "seconds", rule: "60s", color: "#80C4FFCC", thickness: 3, segmented: false, notify: false),
+            BarConfig(name: "Year",    rule: "year",    color: "#B39DDBCC", thickness: Defaults.barThickness, segmented: false, segments: Defaults.barSegments, notify: false),
+            BarConfig(name: "Month",   rule: "month",   color: "#80CBC4CC", thickness: Defaults.barThickness, segmented: false, segments: Defaults.barSegments, notify: false),
+            BarConfig(name: "Week",    rule: "week",    color: "#A5D6A7CC", thickness: Defaults.barThickness, segmented: true,  segments: 7, notify: false),
+            BarConfig(name: "Day",     rule: "16h 8h",  color: "#FF80ABCC", thickness: Defaults.barThickness, segmented: false, segments: Defaults.barSegments, notify: false),
+            BarConfig(name: "Hour", rule: "60m",     color: "#FFD580CC", thickness: Defaults.barThickness, segmented: false, segments: Defaults.barSegments, notify: false),
+            BarConfig(name: "Minute", rule: "60s",     color: "#80C4FFCC", thickness: Defaults.barThickness, segmented: false, segments: Defaults.barSegments, notify: false),
         ]
     }
 }
@@ -137,10 +170,10 @@ struct AnimationConfig: Codable, Equatable {
     var barAnimationDuration: Double
     
     static let defaultAnimation = AnimationConfig(
-        idleGlow: true,
-        expandSpringResponse: 0.45,
-        expandSpringDamping: 0.68,
-        barAnimationDuration: 1.0
+        idleGlow: Defaults.idleGlow,
+        expandSpringResponse: Defaults.expandSpringResponse,
+        expandSpringDamping: Defaults.expandSpringDamping,
+        barAnimationDuration: Defaults.barAnimationDuration
     )
     
     enum CodingKeys: String, CodingKey {
@@ -170,42 +203,18 @@ struct AppConfig: Equatable {
     static let defaultConfig = AppConfig(
         bars: BarConfig.defaultBars(),
         animation: .defaultAnimation,
-        barLength: 200,
-        barLengthExpanded: 300,
-        nameSize: 10,
-        timeTextSize: 14,
-        timeFormat: "24h",
-        timeShowSeconds: true
+        barLength: Defaults.barLength,
+        barLengthExpanded: Defaults.barLengthExpanded,
+        nameSize: Defaults.nameSize,
+        timeTextSize: Defaults.timeTextSize,
+        timeFormat: Defaults.timeFormat,
+        timeShowSeconds: Defaults.timeShowSeconds
     )
     
-    static let defaultYAML: String = """
-    bar_length: 200
-    bar_length_expanded: 300
-    name_size: 10
-    time_text_size: 14
-    time_format: "24h"
-    time_show_seconds: true
-    
-    bars:
-      seconds:
-        rule: "60s"
-        color: "#80C4FFCC"
-        thickness: 3
-      minutes:
-        rule: "60m"
-        color: "#FFD580CC"
-        thickness: 3
-      day:
-        rule: "16h 8h"
-        color: "#FF80ABCC"
-        thickness: 3
-    
-    animation:
-      idle_glow: true
-      expand_spring_response: 0.45
-      expand_spring_damping: 0.68
-      bar_animation_duration: 1.0
-    """
+    /// Generate defaultYAML from the default config (so it stays in sync)
+    static var defaultYAML: String {
+        defaultConfig.toYAML()
+    }
     
     // MARK: - YAML Parsing
     
@@ -223,15 +232,17 @@ struct AppConfig: Equatable {
             for (keyNode, valueNode) in barsMapping {
                 guard let name = keyNode.string else { continue }
                 if case .mapping(let barMapping) = valueNode {
-                    let rule = barMapping.first(where: { $0.key == Node("rule") })?.value.string ?? "60s"
-                    let color = barMapping.first(where: { $0.key == Node("color") })?.value.string ?? "#80C4FFCC"
+                    let rule = barMapping.first(where: { $0.key == Node("rule") })?.value.string ?? Defaults.barRule
+                    let color = barMapping.first(where: { $0.key == Node("color") })?.value.string ?? Defaults.barColor
                     let thicknessVal = barMapping.first(where: { $0.key == Node("thickness") })?.value
-                    let thickness = yamlCGFloat(thicknessVal?.int ?? thicknessVal?.float) ?? 3
-                    let segmented = barMapping.first(where: { $0.key == Node("segmented") })?.value.bool ?? false
-                    let notify = barMapping.first(where: { $0.key == Node("notify") })?.value.bool ?? false
-                    bars.append(BarConfig(name: name, rule: rule, color: color, thickness: thickness, segmented: segmented, notify: notify))
+                    let thickness = yamlCGFloat(thicknessVal?.int ?? thicknessVal?.float) ?? Defaults.barThickness
+                    let segmented = barMapping.first(where: { $0.key == Node("segmented") })?.value.bool ?? Defaults.barSegmented
+                    let segmentsVal = barMapping.first(where: { $0.key == Node("segments") })?.value
+                    let segments = segmentsVal?.int ?? Defaults.barSegments
+                    let notify = barMapping.first(where: { $0.key == Node("notify") })?.value.bool ?? Defaults.barNotify
+                    bars.append(BarConfig(name: name, rule: rule, color: color, thickness: thickness, segmented: segmented, segments: segments, notify: notify))
                 } else {
-                    bars.append(BarConfig(name: name, rule: "60s", color: "#80C4FFCC", thickness: 3, segmented: false, notify: false))
+                    bars.append(BarConfig(name: name, rule: Defaults.barRule, color: Defaults.barColor, thickness: Defaults.barThickness, segmented: Defaults.barSegmented, segments: Defaults.barSegments, notify: Defaults.barNotify))
                 }
             }
         }
@@ -258,12 +269,12 @@ struct AppConfig: Equatable {
         }
         
         // Parse top-level display settings
-        let barLength = yamlCGFloat(dict["bar_length"]) ?? 200
-        let barLengthExpanded = yamlCGFloat(dict["bar_length_expanded"]) ?? 300
-        let nameSize = yamlCGFloat(dict["name_size"]) ?? 10
-        let timeTextSize = yamlCGFloat(dict["time_text_size"]) ?? 14
-        let timeFormat = (dict["time_format"] as? String) ?? "24h"
-        let timeShowSeconds = (dict["time_show_seconds"] as? Bool) ?? true
+        let barLength = yamlCGFloat(dict["bar_length"]) ?? Defaults.barLength
+        let barLengthExpanded = yamlCGFloat(dict["bar_length_expanded"]) ?? Defaults.barLengthExpanded
+        let nameSize = yamlCGFloat(dict["name_size"]) ?? Defaults.nameSize
+        let timeTextSize = yamlCGFloat(dict["time_text_size"]) ?? Defaults.timeTextSize
+        let timeFormat = (dict["time_format"] as? String) ?? Defaults.timeFormat
+        let timeShowSeconds = (dict["time_show_seconds"] as? Bool) ?? Defaults.timeShowSeconds
         
         return AppConfig(bars: bars, animation: animation, barLength: barLength, barLengthExpanded: barLengthExpanded, nameSize: nameSize, timeTextSize: timeTextSize, timeFormat: timeFormat, timeShowSeconds: timeShowSeconds)
     }
@@ -288,6 +299,9 @@ struct AppConfig: Equatable {
             lines.append("    thickness: \(Int(bar.thickness))")
             if bar.segmented {
                 lines.append("    segmented: true")
+                if bar.segments != Defaults.barSegments {
+                    lines.append("    segments: \(bar.segments)")
+                }
             }
             if bar.notify {
                 lines.append("    notify: true")

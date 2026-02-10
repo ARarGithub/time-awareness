@@ -1,17 +1,28 @@
 import Foundation
 
-/// Parses rule strings like "60s", "60m", "24h", "16h 8h" and computes progress.
+/// Parses rule strings like "60s", "60m", "24h", "16h 8h", "year", "month", "week" and computes progress.
 struct TimeRule {
     enum Unit {
         case seconds
         case minutes
         case hours
         case days
+        case week
+        case month
+        case year
     }
     
-    let totalDuration: Double  // in seconds
-    let offset: Double         // in seconds from midnight
+    let totalDuration: Double  // in seconds (for s/m/h), or number of days (for d)
+    let offset: Double         // in seconds from midnight (for h rules)
     let unit: Unit
+    
+    /// Whether this rule only changes once per day (days/week/month/year)
+    var isDayBased: Bool {
+        switch unit {
+        case .days, .week, .month, .year: return true
+        case .seconds, .minutes, .hours: return false
+        }
+    }
     
     /// Parse a rule string.
     /// Formats:
@@ -19,10 +30,26 @@ struct TimeRule {
     ///   "60m"    → 60-minute cycle (resets every hour)
     ///   "24h"    → 24-hour cycle from midnight
     ///   "16h 8h" → 16-hour duration, starting at 8h from midnight
-    ///   "365d"   → day-of-year / totalDays (e.g. day 42 of 365 → 42/365)
+    ///   "365d"   → day-of-year / 365
+    ///   "year"   → day-of-year / days-in-current-year (auto leap year)
+    ///   "month"  → day-of-month / days-in-current-month
+    ///   "week"   → day-of-week / 7 (Monday = 1)
     static func parse(_ rule: String) -> TimeRule? {
-        let parts = rule.trimmingCharacters(in: .whitespaces).split(separator: " ")
+        let trimmed = rule.trimmingCharacters(in: .whitespaces).lowercased()
         
+        // Named rules
+        switch trimmed {
+        case "year":
+            return TimeRule(totalDuration: 0, offset: 0, unit: .year)
+        case "month":
+            return TimeRule(totalDuration: 0, offset: 0, unit: .month)
+        case "week":
+            return TimeRule(totalDuration: 7, offset: 0, unit: .week)
+        default:
+            break
+        }
+        
+        let parts = trimmed.split(separator: " ")
         guard let first = parts.first else { return nil }
         
         // Parse the main duration
@@ -45,7 +72,7 @@ struct TimeRule {
         
         if str.hasSuffix("s") {
             if let val = Double(str.dropLast()) {
-                return (val, .seconds)  // already in seconds
+                return (val, .seconds)
             }
         } else if str.hasSuffix("m") {
             if let val = Double(str.dropLast()) {
@@ -57,7 +84,7 @@ struct TimeRule {
             }
         } else if str.hasSuffix("d") {
             if let val = Double(str.dropLast()) {
-                return (val, .days)  // value = number of days in the cycle
+                return (val, .days)
             }
         }
         
@@ -70,7 +97,6 @@ struct TimeRule {
         
         switch unit {
         case .seconds:
-            // Cycle within the current minute
             let second = calendar.component(.second, from: date)
             let nanosecond = calendar.component(.nanosecond, from: date)
             let currentSec = Double(second) + Double(nanosecond) / 1_000_000_000
@@ -78,7 +104,6 @@ struct TimeRule {
             return min(max(p, 0), 1)
             
         case .minutes:
-            // Cycle within the current hour
             let minute = calendar.component(.minute, from: date)
             let second = calendar.component(.second, from: date)
             let currentSec = Double(minute) * 60 + Double(second)
@@ -86,24 +111,36 @@ struct TimeRule {
             return min(max(p, 0), 1)
             
         case .hours:
-            // Seconds since midnight
             let startOfDay = calendar.startOfDay(for: date)
             let elapsed = date.timeIntervalSince(startOfDay)
-            
-            // Apply offset
             let adjusted = elapsed - offset
-            
-            if adjusted < 0 {
-                return 0
-            }
-            
+            if adjusted < 0 { return 0 }
             let p = adjusted / totalDuration
             return min(max(p, 0), 1)
             
         case .days:
-            // Day of year / total days in cycle
             let dayOfYear = calendar.ordinality(of: .day, in: .year, for: date) ?? 1
             let p = Double(dayOfYear) / totalDuration
+            return min(max(p, 0), 1)
+            
+        case .year:
+            let dayOfYear = calendar.ordinality(of: .day, in: .year, for: date) ?? 1
+            let daysInYear = calendar.range(of: .day, in: .year, for: date)?.count ?? 365
+            let p = Double(dayOfYear) / Double(daysInYear)
+            return min(max(p, 0), 1)
+            
+        case .month:
+            let dayOfMonth = calendar.component(.day, from: date)
+            let daysInMonth = calendar.range(of: .day, in: .month, for: date)?.count ?? 30
+            let p = Double(dayOfMonth) / Double(daysInMonth)
+            return min(max(p, 0), 1)
+            
+        case .week:
+            // ISO weekday: Monday=2 in Calendar, we want Monday=1
+            let weekday = calendar.component(.weekday, from: date)
+            // Convert: Sun=1 → 7, Mon=2 → 1, Tue=3 → 2, ...
+            let dayOfWeek = weekday == 1 ? 7 : weekday - 1
+            let p = Double(dayOfWeek) / 7.0
             return min(max(p, 0), 1)
         }
     }

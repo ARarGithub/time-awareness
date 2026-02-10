@@ -163,7 +163,7 @@ class DynamicIslandController: ObservableObject {
                 viewModel.transitionTo(.hovered)
             }
         case .hovered:
-            if !isInPill {
+            if !isInPill && !viewModel.isNotifying {
                 window.ignoresMouseEvents = true
                 viewModel.transitionTo(.idle)
             }
