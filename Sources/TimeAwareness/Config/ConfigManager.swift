@@ -116,12 +116,14 @@ struct BarConfig: Codable, Identifiable, Equatable {
     var rule: String
     var color: String
     var thickness: CGFloat
+    /// When true, renders as discrete segments instead of a continuous bar
+    var segmented: Bool
     
     static func defaultBars() -> [BarConfig] {
         [
-            BarConfig(name: "seconds", rule: "60s", color: "#80C4FFCC", thickness: 4),
-            BarConfig(name: "minutes", rule: "60m", color: "#FFD580CC", thickness: 4),
-            BarConfig(name: "day", rule: "16h 8h", color: "#FF80ABCC", thickness: 4),
+            BarConfig(name: "seconds", rule: "60s", color: "#80C4FFCC", thickness: 4, segmented: false),
+            BarConfig(name: "minutes", rule: "60m", color: "#FFD580CC", thickness: 4, segmented: false),
+            BarConfig(name: "day", rule: "16h 8h", color: "#FF80ABCC", thickness: 4, segmented: false),
         ]
     }
 }
@@ -207,9 +209,10 @@ struct AppConfig: Equatable {
                     let color = barMapping.first(where: { $0.key == Node("color") })?.value.string ?? "#80C4FFCC"
                     let thicknessVal = barMapping.first(where: { $0.key == Node("thickness") })?.value
                     let thickness = yamlCGFloat(thicknessVal?.int ?? thicknessVal?.float) ?? 4
-                    bars.append(BarConfig(name: name, rule: rule, color: color, thickness: thickness))
+                    let segmented = barMapping.first(where: { $0.key == Node("segmented") })?.value.bool ?? false
+                    bars.append(BarConfig(name: name, rule: rule, color: color, thickness: thickness, segmented: segmented))
                 } else {
-                    bars.append(BarConfig(name: name, rule: "60s", color: "#80C4FFCC", thickness: 4))
+                    bars.append(BarConfig(name: name, rule: "60s", color: "#80C4FFCC", thickness: 4, segmented: false))
                 }
             }
         }
@@ -256,6 +259,9 @@ struct AppConfig: Equatable {
             lines.append("    rule: \"\(bar.rule)\"")
             lines.append("    color: \"\(bar.color)\"")
             lines.append("    thickness: \(Int(bar.thickness))")
+            if bar.segmented {
+                lines.append("    segmented: true")
+            }
         }
         lines.append("")
         lines.append("animation:")

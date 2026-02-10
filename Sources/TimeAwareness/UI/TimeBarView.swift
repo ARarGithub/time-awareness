@@ -1,6 +1,7 @@
 import SwiftUI
 
 /// Individual progress bar with configurable color, thickness, and rounded caps.
+/// Supports two rendering modes: continuous (default) and segmented (block-style).
 struct TimeBarView: View {
     let barConfig: BarConfig
     let progress: Double
@@ -14,6 +15,9 @@ struct TimeBarView: View {
     
     @State private var animatedProgress: Double = 0
     @State private var glowPulse: Bool = false
+    
+    /// Number of discrete segments for segmented bars
+    private let segmentCount = 20
     
     /// Adapt animation to the bar's time unit:
     /// - seconds: short linear animation to avoid perpetual catch-up
@@ -41,22 +45,11 @@ struct TimeBarView: View {
                 }
             }
             
-            // Progress bar
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    // Background track
-                    Capsule()
-                        .fill(Color.white.opacity(0.08))
-                        .frame(height: barConfig.thickness)
-                    
-                    // Filled portion — preserve parsed alpha from hex color
-                    Capsule()
-                        .fill(barColor)
-                        .frame(width: max(barConfig.thickness, geo.size.width * animatedProgress), height: barConfig.thickness)
-                        .shadow(color: barColor, radius: glowPulse ? 8 : 2)
-                }
+            if barConfig.segmented {
+                segmentedBar
+            } else {
+                continuousBar
             }
-            .frame(height: barConfig.thickness)
         }
         .onChange(of: progress) { newValue in
             withAnimation(progressAnimation) {
@@ -67,6 +60,48 @@ struct TimeBarView: View {
         .onAppear {
             animatedProgress = progress
         }
+    }
+    
+    // MARK: - Continuous Bar (default)
+    
+    private var continuousBar: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                // Background track
+                Capsule()
+                    .fill(Color.white.opacity(0.08))
+                    .frame(height: barConfig.thickness)
+                
+                // Filled portion
+                Capsule()
+                    .fill(barColor)
+                    .frame(width: max(barConfig.thickness, geo.size.width * animatedProgress), height: barConfig.thickness)
+                    .shadow(color: barColor, radius: glowPulse ? 8 : 2)
+            }
+        }
+        .frame(height: barConfig.thickness)
+    }
+    
+    // MARK: - Segmented Bar
+    
+    private var segmentedBar: some View {
+        GeometryReader { geo in
+            let gap: CGFloat = 1.5
+            let totalGaps = CGFloat(segmentCount - 1) * gap
+            let segWidth = (geo.size.width - totalGaps) / CGFloat(segmentCount)
+            let filledCount = Int(round(animatedProgress * Double(segmentCount)))
+            
+            HStack(spacing: gap) {
+                ForEach(0..<segmentCount, id: \.self) { i in
+                    let isFilled = i < filledCount
+                    RoundedRectangle(cornerRadius: 1.5)
+                        .fill(isFilled ? barColor : Color.white.opacity(0.06))
+                        .frame(width: segWidth, height: barConfig.thickness)
+                        .shadow(color: isFilled ? barColor.opacity(glowPulse ? 0.6 : 0.2) : .clear, radius: isFilled ? 3 : 0)
+                }
+            }
+        }
+        .frame(height: barConfig.thickness)
     }
     
     /// Flash glow when crossing 25/50/75/100 thresholds

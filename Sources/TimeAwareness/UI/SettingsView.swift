@@ -149,6 +149,8 @@ struct SettingsView: View {
                 .frame(width: 8) // dot column
             Text("Thk")
                 .frame(width: 36, alignment: .center)
+            Text("Seg")
+                .frame(width: 20, alignment: .center)
             // Spacer for delete button column
             Text("")
                 .frame(width: 16)
@@ -212,6 +214,17 @@ struct SettingsView: View {
                 .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
                 .multilineTextAlignment(.center)
             
+            // Segmented toggle
+            Button(action: {
+                editableBars[index].segmented.toggle()
+            }) {
+                Image(systemName: editableBars[index].segmented ? "square.grid.3x3.fill" : "square.grid.3x3")
+                    .font(.system(size: 10))
+                    .foregroundColor(editableBars[index].segmented ? .cyan.opacity(0.9) : .white.opacity(0.3))
+            }
+            .buttonStyle(.plain)
+            .frame(width: 20)
+            
             // Delete
             if editableBars.count > 1 {
                 Button(action: {
@@ -236,7 +249,8 @@ struct SettingsView: View {
             name: "bar_\(editableBars.count)",
             rule: "60s",
             color: "#80C4FFCC",
-            thickness: 4
+            thickness: 4,
+            segmented: false
         )
         editableBars.append(newBar)
     }

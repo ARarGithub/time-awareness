@@ -137,8 +137,11 @@ class DynamicIslandViewModel: ObservableObject {
         for (name, rule) in rules {
             let newValue = rule.progress(at: now)
             let oldValue = barProgresses[name] ?? -1
-            // Only mark changed if the rounded percentage differs (avoids sub-percent noise)
-            if Int(newValue * 100) != Int(oldValue * 100) {
+            // For segmented bars, only update when the filled segment count changes (5% granularity)
+            // For continuous bars, update at 1% granularity
+            let isSegmented = bars.first(where: { $0.name == name })?.segmented ?? false
+            let granularity = isSegmented ? 20 : 100
+            if Int(newValue * Double(granularity)) != Int(oldValue * Double(granularity)) {
                 changed = true
                 break
             }
