@@ -26,13 +26,21 @@ class ConfigManager {
         
         // Create directory
         if !fm.fileExists(atPath: configDir.path) {
-            try? fm.createDirectory(at: configDir, withIntermediateDirectories: true)
+            do {
+                try fm.createDirectory(at: configDir, withIntermediateDirectories: true)
+            } catch {
+                print("[ConfigManager] Failed to create config directory: \(error)")
+            }
         }
         
         // Create default config if not present
         if !fm.fileExists(atPath: configFileURL.path) {
             let defaultYAML = AppConfig.defaultYAML
-            try? defaultYAML.write(to: configFileURL, atomically: true, encoding: .utf8)
+            do {
+                try defaultYAML.write(to: configFileURL, atomically: true, encoding: .utf8)
+            } catch {
+                print("[ConfigManager] Failed to write default config: \(error)")
+            }
         }
     }
     
@@ -65,7 +73,11 @@ class ConfigManager {
     func save(_ newConfig: AppConfig) {
         config = newConfig
         let yamlString = newConfig.toYAML()
-        try? yamlString.write(to: configFileURL, atomically: true, encoding: .utf8)
+        do {
+            try yamlString.write(to: configFileURL, atomically: true, encoding: .utf8)
+        } catch {
+            print("[ConfigManager] Failed to save config: \(error)")
+        }
         NotificationCenter.default.post(name: .configDidReload, object: nil)
     }
     
@@ -182,23 +194,25 @@ struct AppConfig: Equatable {
             return .defaultConfig
         }
         
-        // Parse bars
+        // Parse bars — use Yams Node API to preserve user-defined ordering
         var bars: [BarConfig] = []
-        if let barsDict = dict["bars"] as? [String: Any] {
-            for (name, value) in barsDict {
-                if let barDict = value as? [String: Any] {
-                    let rule = barDict["rule"] as? String ?? "60s"
-                    let color = barDict["color"] as? String ?? "#80C4FFCC"
-                    let thickness = yamlCGFloat(barDict["thickness"]) ?? 4
+        if let node = try Yams.compose(yaml: yaml),
+           case .mapping(let rootMapping) = node,
+           let barsNode = rootMapping.first(where: { $0.key == Node("bars") })?.value,
+           case .mapping(let barsMapping) = barsNode {
+            for (keyNode, valueNode) in barsMapping {
+                guard let name = keyNode.string else { continue }
+                if case .mapping(let barMapping) = valueNode {
+                    let rule = barMapping.first(where: { $0.key == Node("rule") })?.value.string ?? "60s"
+                    let color = barMapping.first(where: { $0.key == Node("color") })?.value.string ?? "#80C4FFCC"
+                    let thicknessVal = barMapping.first(where: { $0.key == Node("thickness") })?.value
+                    let thickness = yamlCGFloat(thicknessVal?.int ?? thicknessVal?.float) ?? 4
                     bars.append(BarConfig(name: name, rule: rule, color: color, thickness: thickness))
                 } else {
                     bars.append(BarConfig(name: name, rule: "60s", color: "#80C4FFCC", thickness: 4))
                 }
             }
         }
-        
-        // Sort bars by name for stable ordering
-        bars.sort { $0.name < $1.name }
         
         if bars.isEmpty {
             bars = BarConfig.defaultBars()

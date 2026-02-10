@@ -20,6 +20,11 @@ class DynamicIslandViewModel: ObservableObject {
     @Published var barLength: CGFloat = 200
     @Published var nameSize: CGFloat = 10
     
+    /// Pre-parsed colors keyed by bar name — avoids repeated ColorParser.parse() in view body
+    private(set) var cachedColors: [String: Color] = [:]
+    /// Time units keyed by bar name — used to adapt animation curves
+    private(set) var barUnits: [String: TimeRule.Unit] = [:]
+    
     private var timer: Timer?
     private var rules: [String: TimeRule] = [:]
     
@@ -39,11 +44,15 @@ class DynamicIslandViewModel: ObservableObject {
         barLength = config.barLength
         nameSize = config.nameSize
         
-        // Parse all rules
+        // Parse all rules and cache colors
         rules = [:]
+        cachedColors = [:]
+        barUnits = [:]
         for bar in config.bars {
+            cachedColors[bar.name] = ColorParser.parse(bar.color)
             if let rule = TimeRule.parse(bar.rule) {
                 rules[bar.name] = rule
+                barUnits[bar.name] = rule.unit
             }
         }
         
@@ -124,6 +133,19 @@ class DynamicIslandViewModel: ObservableObject {
     
     private func updateProgress() {
         let now = Date()
+        var changed = false
+        for (name, rule) in rules {
+            let newValue = rule.progress(at: now)
+            let oldValue = barProgresses[name] ?? -1
+            // Only mark changed if the rounded percentage differs (avoids sub-percent noise)
+            if Int(newValue * 100) != Int(oldValue * 100) {
+                changed = true
+                break
+            }
+        }
+        
+        guard changed else { return }
+        
         var newProgresses: [String: Double] = [:]
         for (name, rule) in rules {
             newProgresses[name] = rule.progress(at: now)
@@ -333,7 +355,9 @@ struct DynamicIslandView: View {
                     progress: viewModel.barProgresses[bar.name] ?? 0,
                     showLabel: false,
                     animationDuration: viewModel.animationConfig.barAnimationDuration,
-                    nameSize: viewModel.nameSize
+                    nameSize: viewModel.nameSize,
+                    barColor: viewModel.cachedColors[bar.name] ?? .white,
+                    timeUnit: viewModel.barUnits[bar.name]
                 )
             }
         }
@@ -352,7 +376,9 @@ struct DynamicIslandView: View {
                     progress: viewModel.barProgresses[bar.name] ?? 0,
                     showLabel: true,
                     animationDuration: viewModel.animationConfig.barAnimationDuration,
-                    nameSize: viewModel.nameSize
+                    nameSize: viewModel.nameSize,
+                    barColor: viewModel.cachedColors[bar.name] ?? .white,
+                    timeUnit: viewModel.barUnits[bar.name]
                 )
             }
         }
@@ -371,7 +397,9 @@ struct DynamicIslandView: View {
                     progress: viewModel.barProgresses[bar.name] ?? 0,
                     showLabel: true,
                     animationDuration: viewModel.animationConfig.barAnimationDuration,
-                    nameSize: viewModel.nameSize
+                    nameSize: viewModel.nameSize,
+                    barColor: viewModel.cachedColors[bar.name] ?? .white,
+                    timeUnit: viewModel.barUnits[bar.name]
                 )
             }
             
@@ -477,5 +505,16 @@ struct DynamicIslandView: View {
         withAnimation(.easeInOut(duration: 2.5).repeatForever(autoreverses: true)) {
             glowOpacity = 0.8
         }
+    }
+}
+
+// MARK: - Root Wrapper View (avoids AnyView type erasure)
+
+struct DynamicIslandRootView: View {
+    @ObservedObject var viewModel: DynamicIslandViewModel
+    
+    var body: some View {
+        DynamicIslandView(viewModel: viewModel)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }

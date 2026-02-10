@@ -23,8 +23,8 @@ class DynamicIslandWindow: NSPanel {
         self.titlebarAppearsTransparent = true
         self.titleVisibility = .hidden
         
-        // Float above the menu bar
-        self.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.screenSaverWindow)) - 1)
+        // Float above the menu bar but below system alerts
+        self.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.statusWindow)) + 1)
         self.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
         
         // Visible in screenshots (no sharingType restriction)

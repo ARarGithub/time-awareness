@@ -7,9 +7,23 @@ struct TimeBarView: View {
     let showLabel: Bool
     let animationDuration: Double
     let nameSize: CGFloat
+    /// Pre-parsed color to avoid repeated ColorParser.parse() calls per body evaluation
+    let barColor: Color
+    /// The time unit of this bar's rule, used to adapt animation curve
+    let timeUnit: TimeRule.Unit?
     
     @State private var animatedProgress: Double = 0
     @State private var glowPulse: Bool = false
+    
+    /// Adapt animation to the bar's time unit:
+    /// - seconds: short linear animation to avoid perpetual catch-up
+    /// - others: easeInOut with configured duration
+    private var progressAnimation: Animation {
+        if timeUnit == .seconds {
+            return .linear(duration: min(animationDuration, 0.3))
+        }
+        return .easeInOut(duration: animationDuration)
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: showLabel ? 3 : 0) {
@@ -37,16 +51,7 @@ struct TimeBarView: View {
                     
                     // Filled portion — preserve parsed alpha from hex color
                     Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    barColor,
-                                    barColor
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
+                        .fill(barColor)
                         .frame(width: max(barConfig.thickness, geo.size.width * animatedProgress), height: barConfig.thickness)
                         .shadow(color: barColor, radius: glowPulse ? 8 : 2)
                 }
@@ -54,7 +59,7 @@ struct TimeBarView: View {
             .frame(height: barConfig.thickness)
         }
         .onChange(of: progress) { newValue in
-            withAnimation(.easeInOut(duration: animationDuration)) {
+            withAnimation(progressAnimation) {
                 animatedProgress = newValue
             }
             checkThresholdGlow(newValue)
@@ -62,10 +67,6 @@ struct TimeBarView: View {
         .onAppear {
             animatedProgress = progress
         }
-    }
-    
-    private var barColor: Color {
-        ColorParser.parse(barConfig.color)
     }
     
     /// Flash glow when crossing 25/50/75/100 thresholds

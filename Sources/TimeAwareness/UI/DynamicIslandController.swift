@@ -5,10 +5,13 @@ import SwiftUI
 class DynamicIslandController: ObservableObject {
     
     private var window: DynamicIslandWindow?
-    private var hostingView: NSHostingView<AnyView>?
+    private var hostingView: NSHostingView<DynamicIslandRootView>?
     private var trackingMonitor: Any?
     private var globalMoveMonitor: Any?
     private var localMoveMonitor: Any?
+    /// Throttle mouse move callbacks to ~60fps
+    private var lastMouseMoveTime: CFAbsoluteTime = 0
+    private let mouseMoveThrottleInterval: CFAbsoluteTime = 1.0 / 60.0  // ~16ms
     
     // The view model shared with SwiftUI
     let viewModel = DynamicIslandViewModel()
@@ -53,6 +56,7 @@ class DynamicIslandController: ObservableObject {
         if let monitor = localMoveMonitor {
             NSEvent.removeMonitor(monitor)
         }
+        NotificationCenter.default.removeObserver(self)
     }
     
     // MARK: - Window Setup
@@ -71,10 +75,9 @@ class DynamicIslandController: ObservableObject {
         
         guard let window = window else { return }
         
-        let rootView = DynamicIslandView(viewModel: viewModel)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        let rootView = DynamicIslandRootView(viewModel: viewModel)
         
-        let hosting = NSHostingView(rootView: AnyView(rootView))
+        let hosting = NSHostingView(rootView: rootView)
         hosting.wantsLayer = true
         hosting.layer?.masksToBounds = false
         hosting.frame = NSRect(origin: .zero, size: frame.size)
@@ -141,6 +144,11 @@ class DynamicIslandController: ObservableObject {
     }
     
     private func handleMouseMove() {
+        // Throttle: skip if called too soon after last invocation
+        let now = CFAbsoluteTimeGetCurrent()
+        guard now - lastMouseMoveTime >= mouseMoveThrottleInterval else { return }
+        lastMouseMoveTime = now
+        
         guard let window = window else { return }
         let mouseLocation = NSEvent.mouseLocation
         

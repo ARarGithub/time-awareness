@@ -15,7 +15,7 @@ struct SettingsView: View {
             // Header
             HStack {
                 Text("Settings")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
                     .foregroundColor(.white.opacity(0.9))
                 Spacer()
             }
@@ -24,36 +24,36 @@ struct SettingsView: View {
             HStack(spacing: 12) {
                 HStack(spacing: 4) {
                     Text("Bar Length")
-                        .font(.system(size: 8, weight: .medium, design: .rounded))
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
                         .foregroundColor(.white.opacity(0.5))
                     TextField("200", text: Binding(
                         get: { String(Int(editableBarLength)) },
                         set: { editableBarLength = CGFloat(Int($0) ?? 200) }
                     ))
                         .textFieldStyle(.plain)
-                        .font(.system(size: 9, design: .monospaced))
+                        .font(.system(size: 10, design: .monospaced))
                         .foregroundColor(.white.opacity(0.8))
                         .padding(.horizontal, 4)
                         .padding(.vertical, 2)
-                        .frame(width: 40)
+                        .frame(width: 44)
                         .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
                         .multilineTextAlignment(.center)
                 }
                 
                 HStack(spacing: 4) {
                     Text("Name Size")
-                        .font(.system(size: 8, weight: .medium, design: .rounded))
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
                         .foregroundColor(.white.opacity(0.5))
                     TextField("10", text: Binding(
                         get: { String(Int(editableNameSize)) },
                         set: { editableNameSize = CGFloat(Int($0) ?? 10) }
                     ))
                         .textFieldStyle(.plain)
-                        .font(.system(size: 9, design: .monospaced))
+                        .font(.system(size: 10, design: .monospaced))
                         .foregroundColor(.white.opacity(0.8))
                         .padding(.horizontal, 4)
                         .padding(.vertical, 2)
-                        .frame(width: 32)
+                        .frame(width: 36)
                         .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
                         .multilineTextAlignment(.center)
                 }
@@ -75,9 +75,9 @@ struct SettingsView: View {
                     Button(action: addBar) {
                         HStack(spacing: 3) {
                             Image(systemName: "plus.circle.fill")
-                                .font(.system(size: 9))
+                                .font(.system(size: 10))
                             Text("Add Bar")
-                                .font(.system(size: 9, weight: .semibold, design: .rounded))
+                                .font(.system(size: 10, weight: .semibold, design: .rounded))
                         }
                         .foregroundColor(.cyan.opacity(0.8))
                         .padding(.top, 2)
@@ -94,7 +94,7 @@ struct SettingsView: View {
                 Button("Cancel") {
                     viewModel.transitionTo(.expanded)
                 }
-                .font(.system(size: 10, weight: .medium, design: .rounded))
+                .font(.system(size: 11, weight: .medium, design: .rounded))
                 .foregroundColor(.white.opacity(0.6))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
@@ -105,11 +105,11 @@ struct SettingsView: View {
                     HStack(spacing: 3) {
                         if showSaved {
                             Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 10))
+                                .font(.system(size: 11))
                                 .foregroundColor(.green)
                         }
                         Text(showSaved ? "Saved!" : "Save")
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
                     }
                     .foregroundColor(showSaved ? .green : .white)
                     .padding(.horizontal, 12)
@@ -153,7 +153,7 @@ struct SettingsView: View {
             Text("")
                 .frame(width: 16)
         }
-        .font(.system(size: 8, weight: .medium, design: .rounded))
+        .font(.system(size: 10, weight: .medium, design: .rounded))
         .foregroundColor(.white.opacity(0.35))
         .padding(.horizontal, 4)
     }
@@ -166,7 +166,7 @@ struct SettingsView: View {
             // Name
             TextField("name", text: $editableBars[index].name)
                 .textFieldStyle(.plain)
-                .font(.system(size: 9, weight: .semibold, design: .rounded))
+                .font(.system(size: 10, weight: .semibold, design: .rounded))
                 .foregroundColor(.white.opacity(0.9))
                 .padding(.horizontal, 4)
                 .padding(.vertical, 2)
@@ -176,7 +176,7 @@ struct SettingsView: View {
             // Rule
             TextField("rule", text: $editableBars[index].rule)
                 .textFieldStyle(.plain)
-                .font(.system(size: 9, design: .monospaced))
+                .font(.system(size: 10, design: .monospaced))
                 .foregroundColor(.cyan.opacity(0.9))
                 .padding(.horizontal, 4)
                 .padding(.vertical, 2)
@@ -186,7 +186,7 @@ struct SettingsView: View {
             // Color
             TextField("color", text: $editableBars[index].color)
                 .textFieldStyle(.plain)
-                .font(.system(size: 8, design: .monospaced))
+                .font(.system(size: 10, design: .monospaced))
                 .foregroundColor(ColorParser.parse(editableBars[index].color))
                 .padding(.horizontal, 4)
                 .padding(.vertical, 2)
@@ -204,7 +204,7 @@ struct SettingsView: View {
                 set: { editableBars[index].thickness = CGFloat(Int($0) ?? 4) }
             ))
                 .textFieldStyle(.plain)
-                .font(.system(size: 9, design: .monospaced))
+                .font(.system(size: 10, design: .monospaced))
                 .foregroundColor(.white.opacity(0.8))
                 .padding(.horizontal, 4)
                 .padding(.vertical, 2)
@@ -255,11 +255,11 @@ struct SettingsView: View {
             showSaved = true
         }
         
+        // Reset "Saved!" indicator after 1.5s but stay in settings
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             withAnimation {
                 showSaved = false
             }
-            viewModel.transitionTo(.expanded)
         }
     }
 }
