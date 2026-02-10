@@ -122,8 +122,8 @@ enum Defaults {
     static let barNotify = false
     
     // Display
-    static let barLength: CGFloat = 200
-    static let barLengthExpanded: CGFloat = 300
+    static let barLength: CGFloat = 300
+    static let barLengthExpanded: CGFloat = 400
     static let nameSize: CGFloat = 20
     static let timeTextSize: CGFloat = 24
     static let timeFormat = "24h"
