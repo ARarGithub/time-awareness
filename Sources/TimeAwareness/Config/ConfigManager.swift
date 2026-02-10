@@ -154,8 +154,10 @@ struct AnimationConfig: Codable, Equatable {
 struct AppConfig: Equatable {
     var bars: [BarConfig]
     var animation: AnimationConfig
-    /// Width of progress bars in points (determines Dynamic Island width)
+    /// Width of progress bars in idle state (compact)
     var barLength: CGFloat
+    /// Width of progress bars in hovered/expanded states
+    var barLengthExpanded: CGFloat
     /// Font size of bar names in the expanded view (determines row height)
     var nameSize: CGFloat
     /// Font size of the current-time text shown in the expanded view
@@ -169,6 +171,7 @@ struct AppConfig: Equatable {
         bars: BarConfig.defaultBars(),
         animation: .defaultAnimation,
         barLength: 200,
+        barLengthExpanded: 300,
         nameSize: 10,
         timeTextSize: 14,
         timeFormat: "24h",
@@ -177,6 +180,7 @@ struct AppConfig: Equatable {
     
     static let defaultYAML: String = """
     bar_length: 200
+    bar_length_expanded: 300
     name_size: 10
     time_text_size: 14
     time_format: "24h"
@@ -255,12 +259,13 @@ struct AppConfig: Equatable {
         
         // Parse top-level display settings
         let barLength = yamlCGFloat(dict["bar_length"]) ?? 200
+        let barLengthExpanded = yamlCGFloat(dict["bar_length_expanded"]) ?? 300
         let nameSize = yamlCGFloat(dict["name_size"]) ?? 10
         let timeTextSize = yamlCGFloat(dict["time_text_size"]) ?? 14
         let timeFormat = (dict["time_format"] as? String) ?? "24h"
         let timeShowSeconds = (dict["time_show_seconds"] as? Bool) ?? true
         
-        return AppConfig(bars: bars, animation: animation, barLength: barLength, nameSize: nameSize, timeTextSize: timeTextSize, timeFormat: timeFormat, timeShowSeconds: timeShowSeconds)
+        return AppConfig(bars: bars, animation: animation, barLength: barLength, barLengthExpanded: barLengthExpanded, nameSize: nameSize, timeTextSize: timeTextSize, timeFormat: timeFormat, timeShowSeconds: timeShowSeconds)
     }
     
     // MARK: - YAML Serialization
@@ -268,6 +273,7 @@ struct AppConfig: Equatable {
     func toYAML() -> String {
         var lines: [String] = [
             "bar_length: \(Int(barLength))",
+            "bar_length_expanded: \(Int(barLengthExpanded))",
             "name_size: \(Int(nameSize))",
             "time_text_size: \(Int(timeTextSize))",
             "time_format: \"\(timeFormat)\"",

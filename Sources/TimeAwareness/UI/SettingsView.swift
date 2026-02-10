@@ -7,6 +7,7 @@ struct SettingsView: View {
     @State private var editableBars: [BarConfig] = []
     @State private var editableAnimation: AnimationConfig = .defaultAnimation
     @State private var editableBarLength: CGFloat = 200
+    @State private var editableBarLengthExpanded: CGFloat = 300
     @State private var editableNameSize: CGFloat = 10
     @State private var editableTimeTextSize: CGFloat = 14
     @State private var editableTimeFormat: String = "24h"
@@ -26,12 +27,30 @@ struct SettingsView: View {
             // Display settings row
             HStack(spacing: 12) {
                 HStack(spacing: 4) {
-                    Text("Bar Length")
+                    Text("Idle Len")
                         .font(.system(size: 10, weight: .medium, design: .rounded))
                         .foregroundColor(.white.opacity(0.5))
                     TextField("200", text: Binding(
                         get: { String(Int(editableBarLength)) },
                         set: { editableBarLength = CGFloat(Int($0) ?? 200) }
+                    ))
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.8))
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                        .frame(width: 44)
+                        .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
+                        .multilineTextAlignment(.center)
+                }
+                
+                HStack(spacing: 4) {
+                    Text("Expand Len")
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.5))
+                    TextField("300", text: Binding(
+                        get: { String(Int(editableBarLengthExpanded)) },
+                        set: { editableBarLengthExpanded = CGFloat(Int($0) ?? 300) }
                     ))
                         .textFieldStyle(.plain)
                         .font(.system(size: 10, design: .monospaced))
@@ -191,6 +210,7 @@ struct SettingsView: View {
             editableBars = viewModel.bars
             editableAnimation = viewModel.animationConfig
             editableBarLength = viewModel.barLength
+            editableBarLengthExpanded = viewModel.barLengthExpanded
             editableNameSize = viewModel.nameSize
             editableTimeTextSize = viewModel.timeTextSize
             editableTimeFormat = viewModel.timeFormat
@@ -337,6 +357,7 @@ struct SettingsView: View {
             bars: editableBars,
             animation: editableAnimation,
             barLength: editableBarLength,
+            barLengthExpanded: editableBarLengthExpanded,
             nameSize: editableNameSize,
             timeTextSize: editableTimeTextSize,
             timeFormat: editableTimeFormat,

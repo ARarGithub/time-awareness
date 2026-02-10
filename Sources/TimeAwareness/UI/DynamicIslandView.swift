@@ -18,6 +18,7 @@ class DynamicIslandViewModel: ObservableObject {
     @Published var bars: [BarConfig] = []
     @Published var animationConfig: AnimationConfig = .defaultAnimation
     @Published var barLength: CGFloat = 200
+    @Published var barLengthExpanded: CGFloat = 300
     @Published var nameSize: CGFloat = 10
     @Published var timeTextSize: CGFloat = 14
     @Published var timeFormat: String = "24h"
@@ -52,6 +53,7 @@ class DynamicIslandViewModel: ObservableObject {
         bars = config.bars
         animationConfig = config.animation
         barLength = config.barLength
+        barLengthExpanded = config.barLengthExpanded
         nameSize = config.nameSize
         timeTextSize = config.timeTextSize
         timeFormat = config.timeFormat
@@ -121,7 +123,7 @@ class DynamicIslandViewModel: ObservableObject {
         let barHeight: CGFloat = CGFloat(barCount) * barRowHeight + CGFloat(barCount - 1) * 4
         let timeHeight: CGFloat = timeTextSize + 6  // time text + spacing
         let height: CGFloat = 16 + timeHeight + barHeight + 16
-        let width: CGFloat = barLength + 40
+        let width: CGFloat = barLengthExpanded + 40
         return CGSize(width: max(width, 140), height: max(height, 48))
     }
     
@@ -132,7 +134,7 @@ class DynamicIslandViewModel: ObservableObject {
         let barHeight: CGFloat = CGFloat(barCount) * barRowHeight + CGFloat(barCount - 1) * 6
         let timeHeight: CGFloat = timeTextSize + 8  // time text + spacing below
         let height: CGFloat = 16 + timeHeight + barHeight + 16 + 36 + 12
-        let width: CGFloat = barLength + 40
+        let width: CGFloat = barLengthExpanded + 40
         return CGSize(width: max(width, 200), height: max(height, 80))
     }
     
@@ -141,7 +143,7 @@ class DynamicIslandViewModel: ObservableObject {
         let editorRowHeight: CGFloat = 24
         let barsHeight: CGFloat = CGFloat(barCount) * editorRowHeight + CGFloat(barCount - 1) * 6
         let height: CGFloat = 30 + min(barsHeight + 30, 170) + 40 + 16
-        let width: CGFloat = max(barLength + 40, 380)
+        let width: CGFloat = max(barLengthExpanded + 40, 380)
         return CGSize(width: width, height: max(height, 140))
     }
     
