@@ -8,6 +8,9 @@ struct SettingsView: View {
     @State private var editableAnimation: AnimationConfig = .defaultAnimation
     @State private var editableBarLength: CGFloat = 200
     @State private var editableNameSize: CGFloat = 10
+    @State private var editableTimeTextSize: CGFloat = 14
+    @State private var editableTimeFormat: String = "24h"
+    @State private var editableTimeShowSeconds: Bool = true
     @State private var showSaved: Bool = false
     
     var body: some View {
@@ -56,6 +59,63 @@ struct SettingsView: View {
                         .frame(width: 36)
                         .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
                         .multilineTextAlignment(.center)
+                }
+                
+                Spacer()
+            }
+            
+            // Time display settings row
+            HStack(spacing: 12) {
+                HStack(spacing: 4) {
+                    Text("Time Size")
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.5))
+                    TextField("14", text: Binding(
+                        get: { String(Int(editableTimeTextSize)) },
+                        set: { editableTimeTextSize = CGFloat(Int($0) ?? 14) }
+                    ))
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.8))
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                        .frame(width: 36)
+                        .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
+                        .multilineTextAlignment(.center)
+                }
+                
+                HStack(spacing: 4) {
+                    Text("Time Format")
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.5))
+                    Button(action: {
+                        editableTimeFormat = editableTimeFormat == "24h" ? "12h" : "24h"
+                    }) {
+                        Text(editableTimeFormat)
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                            .foregroundColor(.cyan.opacity(0.9))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
+                    }
+                    .buttonStyle(.plain)
+                }
+                
+                HStack(spacing: 4) {
+                    Text("Seconds")
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.5))
+                    Button(action: {
+                        editableTimeShowSeconds.toggle()
+                    }) {
+                        Text(editableTimeShowSeconds ? "ON" : "OFF")
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                            .foregroundColor(editableTimeShowSeconds ? .cyan.opacity(0.9) : .white.opacity(0.4))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
+                    }
+                    .buttonStyle(.plain)
                 }
                 
                 Spacer()
@@ -132,6 +192,9 @@ struct SettingsView: View {
             editableAnimation = viewModel.animationConfig
             editableBarLength = viewModel.barLength
             editableNameSize = viewModel.nameSize
+            editableTimeTextSize = viewModel.timeTextSize
+            editableTimeFormat = viewModel.timeFormat
+            editableTimeShowSeconds = viewModel.timeShowSeconds
         }
     }
     
@@ -260,7 +323,10 @@ struct SettingsView: View {
             bars: editableBars,
             animation: editableAnimation,
             barLength: editableBarLength,
-            nameSize: editableNameSize
+            nameSize: editableNameSize,
+            timeTextSize: editableTimeTextSize,
+            timeFormat: editableTimeFormat,
+            timeShowSeconds: editableTimeShowSeconds
         )
         ConfigManager.shared.save(newConfig)
         viewModel.reloadConfig()

@@ -19,6 +19,10 @@ class DynamicIslandViewModel: ObservableObject {
     @Published var animationConfig: AnimationConfig = .defaultAnimation
     @Published var barLength: CGFloat = 200
     @Published var nameSize: CGFloat = 10
+    @Published var timeTextSize: CGFloat = 14
+    @Published var timeFormat: String = "24h"
+    @Published var timeShowSeconds: Bool = true
+    @Published var currentTimeString: String = ""
     
     /// Pre-parsed colors keyed by bar name — avoids repeated ColorParser.parse() in view body
     private(set) var cachedColors: [String: Color] = [:]
@@ -27,6 +31,11 @@ class DynamicIslandViewModel: ObservableObject {
     
     private var timer: Timer?
     private var rules: [String: TimeRule] = [:]
+    private lazy var timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm:ss"
+        return f
+    }()
     
     init() {
         reloadConfig()
@@ -43,6 +52,16 @@ class DynamicIslandViewModel: ObservableObject {
         animationConfig = config.animation
         barLength = config.barLength
         nameSize = config.nameSize
+        timeTextSize = config.timeTextSize
+        timeFormat = config.timeFormat
+        timeShowSeconds = config.timeShowSeconds
+        
+        // Update time formatter
+        if timeFormat == "12h" {
+            timeFormatter.dateFormat = timeShowSeconds ? "h:mm:ss a" : "h:mm a"
+        } else {
+            timeFormatter.dateFormat = timeShowSeconds ? "HH:mm:ss" : "HH:mm"
+        }
         
         // Parse all rules and cache colors
         rules = [:]
@@ -99,7 +118,8 @@ class DynamicIslandViewModel: ObservableObject {
         let labelHeight: CGFloat = nameSize + 4  // label line height
         let barRowHeight: CGFloat = labelHeight + 3 + max(bars.map({ $0.thickness }).max() ?? 4, 4)
         let barHeight: CGFloat = CGFloat(barCount) * barRowHeight + CGFloat(barCount - 1) * 4
-        let height: CGFloat = 16 + barHeight + 16
+        let timeHeight: CGFloat = timeTextSize + 6  // time text + spacing
+        let height: CGFloat = 16 + timeHeight + barHeight + 16
         let width: CGFloat = barLength + 40
         return CGSize(width: max(width, 140), height: max(height, 48))
     }
@@ -109,7 +129,8 @@ class DynamicIslandViewModel: ObservableObject {
         let labelHeight: CGFloat = nameSize + 4
         let barRowHeight: CGFloat = labelHeight + 3 + max(bars.map({ $0.thickness }).max() ?? 4, 4)
         let barHeight: CGFloat = CGFloat(barCount) * barRowHeight + CGFloat(barCount - 1) * 6
-        let height: CGFloat = 16 + barHeight + 16 + 36 + 12
+        let timeHeight: CGFloat = timeTextSize + 8  // time text + spacing below
+        let height: CGFloat = 16 + timeHeight + barHeight + 16 + 36 + 12
         let width: CGFloat = barLength + 40
         return CGSize(width: max(width, 200), height: max(height, 80))
     }
@@ -133,29 +154,35 @@ class DynamicIslandViewModel: ObservableObject {
     
     private func updateProgress() {
         let now = Date()
-        var changed = false
+        
+        // Update current time string
+        let newTimeString = timeFormatter.string(from: now)
+        
+        // Per-bar diffing: only update bars whose displayed value actually changed.
+        // Segmented bars use 20-bucket granularity (5%), continuous bars use 100-bucket (1%).
+        // This prevents a continuous bar's updates from forcing a segmented bar to re-render.
+        var updates: [String: Double] = [:]
         for (name, rule) in rules {
             let newValue = rule.progress(at: now)
             let oldValue = barProgresses[name] ?? -1
-            // For segmented bars, only update when the filled segment count changes (5% granularity)
-            // For continuous bars, update at 1% granularity
             let isSegmented = bars.first(where: { $0.name == name })?.segmented ?? false
             let granularity = isSegmented ? 20 : 100
             if Int(newValue * Double(granularity)) != Int(oldValue * Double(granularity)) {
-                changed = true
-                break
+                updates[name] = newValue
             }
         }
         
-        guard changed else { return }
-        
-        var newProgresses: [String: Double] = [:]
-        for (name, rule) in rules {
-            newProgresses[name] = rule.progress(at: now)
-        }
+        let timeChanged = newTimeString != currentTimeString
+        guard !updates.isEmpty || timeChanged else { return }
         
         DispatchQueue.main.async { [weak self] in
-            self?.barProgresses = newProgresses
+            guard let self = self else { return }
+            if timeChanged {
+                self.currentTimeString = newTimeString
+            }
+            for (name, value) in updates {
+                self.barProgresses[name] = value
+            }
         }
     }
 }
@@ -373,6 +400,12 @@ struct DynamicIslandView: View {
     
     private var hoveredContent: some View {
         VStack(spacing: 4) {
+            // Current time display
+            Text(viewModel.currentTimeString)
+                .font(.system(size: viewModel.timeTextSize, weight: .bold, design: .monospaced))
+                .foregroundColor(.white.opacity(0.85))
+                .frame(maxWidth: .infinity, alignment: .center)
+            
             ForEach(viewModel.bars) { bar in
                 TimeBarView(
                     barConfig: bar,
@@ -394,6 +427,12 @@ struct DynamicIslandView: View {
     
     private var expandedContent: some View {
         VStack(spacing: 6) {
+            // Current time display
+            Text(viewModel.currentTimeString)
+                .font(.system(size: viewModel.timeTextSize, weight: .bold, design: .monospaced))
+                .foregroundColor(.white.opacity(0.85))
+                .frame(maxWidth: .infinity, alignment: .center)
+            
             ForEach(viewModel.bars) { bar in
                 TimeBarView(
                     barConfig: bar,

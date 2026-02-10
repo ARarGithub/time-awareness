@@ -156,17 +156,29 @@ struct AppConfig: Equatable {
     var barLength: CGFloat
     /// Font size of bar names in the expanded view (determines row height)
     var nameSize: CGFloat
+    /// Font size of the current-time text shown in the expanded view
+    var timeTextSize: CGFloat
+    /// Time display format: "12h" or "24h"
+    var timeFormat: String
+    /// Whether to show seconds in the time display
+    var timeShowSeconds: Bool
     
     static let defaultConfig = AppConfig(
         bars: BarConfig.defaultBars(),
         animation: .defaultAnimation,
         barLength: 200,
-        nameSize: 10
+        nameSize: 10,
+        timeTextSize: 14,
+        timeFormat: "24h",
+        timeShowSeconds: true
     )
     
     static let defaultYAML: String = """
     bar_length: 200
     name_size: 10
+    time_text_size: 14
+    time_format: "24h"
+    time_show_seconds: true
     
     bars:
       seconds:
@@ -241,8 +253,11 @@ struct AppConfig: Equatable {
         // Parse top-level display settings
         let barLength = yamlCGFloat(dict["bar_length"]) ?? 200
         let nameSize = yamlCGFloat(dict["name_size"]) ?? 10
+        let timeTextSize = yamlCGFloat(dict["time_text_size"]) ?? 14
+        let timeFormat = (dict["time_format"] as? String) ?? "24h"
+        let timeShowSeconds = (dict["time_show_seconds"] as? Bool) ?? true
         
-        return AppConfig(bars: bars, animation: animation, barLength: barLength, nameSize: nameSize)
+        return AppConfig(bars: bars, animation: animation, barLength: barLength, nameSize: nameSize, timeTextSize: timeTextSize, timeFormat: timeFormat, timeShowSeconds: timeShowSeconds)
     }
     
     // MARK: - YAML Serialization
@@ -251,6 +266,9 @@ struct AppConfig: Equatable {
         var lines: [String] = [
             "bar_length: \(Int(barLength))",
             "name_size: \(Int(nameSize))",
+            "time_text_size: \(Int(timeTextSize))",
+            "time_format: \"\(timeFormat)\"",
+            "time_show_seconds: \(timeShowSeconds)",
             "",
             "bars:"
         ]

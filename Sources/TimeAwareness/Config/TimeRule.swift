@@ -6,6 +6,7 @@ struct TimeRule {
         case seconds
         case minutes
         case hours
+        case days
     }
     
     let totalDuration: Double  // in seconds
@@ -18,6 +19,7 @@ struct TimeRule {
     ///   "60m"    → 60-minute cycle (resets every hour)
     ///   "24h"    → 24-hour cycle from midnight
     ///   "16h 8h" → 16-hour duration, starting at 8h from midnight
+    ///   "365d"   → day-of-year / totalDays (e.g. day 42 of 365 → 42/365)
     static func parse(_ rule: String) -> TimeRule? {
         let parts = rule.trimmingCharacters(in: .whitespaces).split(separator: " ")
         
@@ -52,6 +54,10 @@ struct TimeRule {
         } else if str.hasSuffix("h") {
             if let val = Double(str.dropLast()) {
                 return (val * 3600, .hours)
+            }
+        } else if str.hasSuffix("d") {
+            if let val = Double(str.dropLast()) {
+                return (val, .days)  // value = number of days in the cycle
             }
         }
         
@@ -92,6 +98,12 @@ struct TimeRule {
             }
             
             let p = adjusted / totalDuration
+            return min(max(p, 0), 1)
+            
+        case .days:
+            // Day of year / total days in cycle
+            let dayOfYear = calendar.ordinality(of: .day, in: .year, for: date) ?? 1
+            let p = Double(dayOfYear) / totalDuration
             return min(max(p, 0), 1)
         }
     }
