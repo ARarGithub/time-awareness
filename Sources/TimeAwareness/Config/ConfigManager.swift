@@ -118,12 +118,14 @@ struct BarConfig: Codable, Identifiable, Equatable {
     var thickness: CGFloat
     /// When true, renders as discrete segments instead of a continuous bar
     var segmented: Bool
+    /// When true, auto-expands to hovered state when bar reaches 100%
+    var notify: Bool
     
     static func defaultBars() -> [BarConfig] {
         [
-            BarConfig(name: "seconds", rule: "60s", color: "#80C4FFCC", thickness: 4, segmented: false),
-            BarConfig(name: "minutes", rule: "60m", color: "#FFD580CC", thickness: 4, segmented: false),
-            BarConfig(name: "day", rule: "16h 8h", color: "#FF80ABCC", thickness: 4, segmented: false),
+            BarConfig(name: "seconds", rule: "60s", color: "#80C4FFCC", thickness: 4, segmented: false, notify: false),
+            BarConfig(name: "minutes", rule: "60m", color: "#FFD580CC", thickness: 4, segmented: false, notify: false),
+            BarConfig(name: "day", rule: "16h 8h", color: "#FF80ABCC", thickness: 4, segmented: false, notify: false),
         ]
     }
 }
@@ -222,9 +224,10 @@ struct AppConfig: Equatable {
                     let thicknessVal = barMapping.first(where: { $0.key == Node("thickness") })?.value
                     let thickness = yamlCGFloat(thicknessVal?.int ?? thicknessVal?.float) ?? 4
                     let segmented = barMapping.first(where: { $0.key == Node("segmented") })?.value.bool ?? false
-                    bars.append(BarConfig(name: name, rule: rule, color: color, thickness: thickness, segmented: segmented))
+                    let notify = barMapping.first(where: { $0.key == Node("notify") })?.value.bool ?? false
+                    bars.append(BarConfig(name: name, rule: rule, color: color, thickness: thickness, segmented: segmented, notify: notify))
                 } else {
-                    bars.append(BarConfig(name: name, rule: "60s", color: "#80C4FFCC", thickness: 4, segmented: false))
+                    bars.append(BarConfig(name: name, rule: "60s", color: "#80C4FFCC", thickness: 4, segmented: false, notify: false))
                 }
             }
         }
@@ -279,6 +282,9 @@ struct AppConfig: Equatable {
             lines.append("    thickness: \(Int(bar.thickness))")
             if bar.segmented {
                 lines.append("    segmented: true")
+            }
+            if bar.notify {
+                lines.append("    notify: true")
             }
         }
         lines.append("")

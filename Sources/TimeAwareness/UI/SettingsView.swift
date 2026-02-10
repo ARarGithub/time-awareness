@@ -214,6 +214,8 @@ struct SettingsView: View {
                 .frame(width: 36, alignment: .center)
             Text("Seg")
                 .frame(width: 20, alignment: .center)
+            Text("Ntf")
+                .frame(width: 20, alignment: .center)
             // Spacer for delete button column
             Text("")
                 .frame(width: 16)
@@ -288,6 +290,17 @@ struct SettingsView: View {
             .buttonStyle(.plain)
             .frame(width: 20)
             
+            // Notify toggle
+            Button(action: {
+                editableBars[index].notify.toggle()
+            }) {
+                Image(systemName: editableBars[index].notify ? "bell.fill" : "bell.slash")
+                    .font(.system(size: 10))
+                    .foregroundColor(editableBars[index].notify ? .yellow.opacity(0.9) : .white.opacity(0.3))
+            }
+            .buttonStyle(.plain)
+            .frame(width: 20)
+            
             // Delete
             if editableBars.count > 1 {
                 Button(action: {
@@ -313,7 +326,8 @@ struct SettingsView: View {
             rule: "60s",
             color: "#80C4FFCC",
             thickness: 4,
-            segmented: false
+            segmented: false,
+            notify: false
         )
         editableBars.append(newBar)
     }

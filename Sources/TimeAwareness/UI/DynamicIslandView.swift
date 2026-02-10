@@ -31,6 +31,7 @@ class DynamicIslandViewModel: ObservableObject {
     
     private var timer: Timer?
     private var rules: [String: TimeRule] = [:]
+    private var notificationDismissWork: DispatchWorkItem?
     private lazy var timeFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "HH:mm:ss"
@@ -180,8 +181,38 @@ class DynamicIslandViewModel: ObservableObject {
             if timeChanged {
                 self.currentTimeString = newTimeString
             }
+            
+            // Check for notification: any bar with notify=true just completed a cycle.
+            // Cyclic bars (seconds, minutes) wrap from ~0.98 → ~0.0, never reaching 1.0.
+            // Detect cycle completion by checking if progress drops significantly (wrap-around).
+            // Non-cyclic bars (hours, days) can actually reach 1.0.
+            var shouldNotify = false
             for (name, value) in updates {
+                let oldValue = self.barProgresses[name] ?? -1
+                let bar = self.bars.first(where: { $0.name == name })
+                if bar?.notify == true && oldValue >= 0 {
+                    let cycleCompleted = (oldValue - value) > 0.5  // wrap-around detected
+                    let reachedFull = value >= 1.0 && oldValue < 1.0
+                    if cycleCompleted || reachedFull {
+                        shouldNotify = true
+                    }
+                }
                 self.barProgresses[name] = value
+            }
+            
+            if shouldNotify && self.state == .idle {
+                // Cancel any pending dismiss
+                self.notificationDismissWork?.cancel()
+                
+                self.transitionTo(.hovered)
+                
+                // Auto-dismiss after 3 seconds
+                let work = DispatchWorkItem { [weak self] in
+                    guard let self = self, self.state == .hovered else { return }
+                    self.transitionTo(.idle)
+                }
+                self.notificationDismissWork = work
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: work)
             }
         }
     }
