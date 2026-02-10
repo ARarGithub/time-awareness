@@ -214,6 +214,8 @@ struct SettingsView: View {
                 .frame(width: 36, alignment: .center)
             Text("Seg")
                 .frame(width: 20, alignment: .center)
+            Text("#")
+                .frame(width: 28, alignment: .center)
             Text("Ntf")
                 .frame(width: 20, alignment: .center)
             // Spacer for delete button column
@@ -290,7 +292,7 @@ struct SettingsView: View {
             .buttonStyle(.plain)
             .frame(width: 20)
             
-            // Segment count (only shown when segmented)
+            // Segment count (always reserves space for alignment)
             if editableBars[index].segmented {
                 TextField("20", text: Binding(
                     get: { String(editableBars[index].segments) },
@@ -304,6 +306,8 @@ struct SettingsView: View {
                     .frame(width: 28)
                     .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
                     .multilineTextAlignment(.center)
+            } else {
+                Spacer().frame(width: 28)
             }
             
             // Notify toggle
