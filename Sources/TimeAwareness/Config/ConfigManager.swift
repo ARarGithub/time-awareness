@@ -120,6 +120,8 @@ enum Defaults {
     static let barSegmented = false
     static let barSegments = 20
     static let barNotify = false
+    static let barShowInIdle = true
+    static let barShowInExpanded = true
     
     // Display
     static let barLength: CGFloat = 300
@@ -150,15 +152,19 @@ struct BarConfig: Codable, Identifiable, Equatable {
     var segments: Int
     /// When true, auto-expands to hovered state when bar reaches 100%
     var notify: Bool
+    /// Show this bar in the idle (compact) state
+    var showInIdle: Bool
+    /// Show this bar in the hovered/expanded states
+    var showInExpanded: Bool
     
     static func defaultBars() -> [BarConfig] {
         [
-            BarConfig(name: "Year",    rule: "year",    color: "#B39DDBCC", thickness: Defaults.barThickness, segmented: false, segments: Defaults.barSegments, notify: false),
-            BarConfig(name: "Month",   rule: "month",   color: "#80CBC4CC", thickness: Defaults.barThickness, segmented: false, segments: Defaults.barSegments, notify: false),
-            BarConfig(name: "Week",    rule: "week",    color: "#A5D6A7CC", thickness: Defaults.barThickness, segmented: true,  segments: 7, notify: false),
-            BarConfig(name: "Day",     rule: "16h 8h",  color: "#FF80ABCC", thickness: Defaults.barThickness, segmented: false, segments: Defaults.barSegments, notify: false),
-            BarConfig(name: "Hour", rule: "60m",     color: "#FFD580CC", thickness: Defaults.barThickness, segmented: false, segments: Defaults.barSegments, notify: false),
-            BarConfig(name: "Minute", rule: "60s",     color: "#80C4FFCC", thickness: Defaults.barThickness, segmented: false, segments: Defaults.barSegments, notify: false),
+            BarConfig(name: "Year",    rule: "year",    color: "#B39DDBCC", thickness: Defaults.barThickness, segmented: false, segments: Defaults.barSegments, notify: false, showInIdle: true, showInExpanded: true),
+            BarConfig(name: "Month",   rule: "month",   color: "#80CBC4CC", thickness: Defaults.barThickness, segmented: false, segments: Defaults.barSegments, notify: false, showInIdle: true, showInExpanded: true),
+            BarConfig(name: "Week",    rule: "week",    color: "#A5D6A7CC", thickness: Defaults.barThickness, segmented: true,  segments: 7, notify: false, showInIdle: true, showInExpanded: true),
+            BarConfig(name: "Day",     rule: "16h 8h",  color: "#FF80ABCC", thickness: Defaults.barThickness, segmented: false, segments: Defaults.barSegments, notify: false, showInIdle: true, showInExpanded: true),
+            BarConfig(name: "Hour", rule: "60m",     color: "#FFD580CC", thickness: Defaults.barThickness, segmented: false, segments: Defaults.barSegments, notify: false, showInIdle: true, showInExpanded: true),
+            BarConfig(name: "Minute", rule: "60s",     color: "#80C4FFCC", thickness: Defaults.barThickness, segmented: false, segments: Defaults.barSegments, notify: false, showInIdle: true, showInExpanded: true),
         ]
     }
 }
@@ -240,9 +246,11 @@ struct AppConfig: Equatable {
                     let segmentsVal = barMapping.first(where: { $0.key == Node("segments") })?.value
                     let segments = segmentsVal?.int ?? Defaults.barSegments
                     let notify = barMapping.first(where: { $0.key == Node("notify") })?.value.bool ?? Defaults.barNotify
-                    bars.append(BarConfig(name: name, rule: rule, color: color, thickness: thickness, segmented: segmented, segments: segments, notify: notify))
+                    let showInIdle = barMapping.first(where: { $0.key == Node("show_in_idle") })?.value.bool ?? Defaults.barShowInIdle
+                    let showInExpanded = barMapping.first(where: { $0.key == Node("show_in_expanded") })?.value.bool ?? Defaults.barShowInExpanded
+                    bars.append(BarConfig(name: name, rule: rule, color: color, thickness: thickness, segmented: segmented, segments: segments, notify: notify, showInIdle: showInIdle, showInExpanded: showInExpanded))
                 } else {
-                    bars.append(BarConfig(name: name, rule: Defaults.barRule, color: Defaults.barColor, thickness: Defaults.barThickness, segmented: Defaults.barSegmented, segments: Defaults.barSegments, notify: Defaults.barNotify))
+                    bars.append(BarConfig(name: name, rule: Defaults.barRule, color: Defaults.barColor, thickness: Defaults.barThickness, segmented: Defaults.barSegmented, segments: Defaults.barSegments, notify: Defaults.barNotify, showInIdle: Defaults.barShowInIdle, showInExpanded: Defaults.barShowInExpanded))
                 }
             }
         }
@@ -305,6 +313,12 @@ struct AppConfig: Equatable {
             }
             if bar.notify {
                 lines.append("    notify: true")
+            }
+            if !bar.showInIdle {
+                lines.append("    show_in_idle: false")
+            }
+            if !bar.showInExpanded {
+                lines.append("    show_in_expanded: false")
             }
         }
         lines.append("")

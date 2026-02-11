@@ -4,7 +4,6 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var viewModel: DynamicIslandViewModel
     
-    @State private var editableBars: [BarConfig] = []
     @State private var editableAnimation: AnimationConfig = .defaultAnimation
     @State private var editableBarLength: CGFloat = 200
     @State private var editableBarLengthExpanded: CGFloat = 300
@@ -97,31 +96,40 @@ struct SettingsView: View {
             .padding(.vertical, 5)
             .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.03)))
             
-            // Bar editor list (headers + fields in same container for alignment)
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 4) {
-                    // Column headers — inside scroll so they align with fields
-                    barHeaderRow
-                    
-                    ForEach(editableBars.indices, id: \.self) { index in
-                        barEditor(index: index)
-                    }
-                    
-                    // Add bar button
-                    Button(action: addBar) {
-                        HStack(spacing: 3) {
-                            Image(systemName: "plus.circle.fill")
+            // Bars section (opens separate window to avoid cramped inline editor)
+            VStack(spacing: 4) {
+                HStack {
+                    Text("BARS")
+                        .font(.system(size: 8, weight: .bold, design: .rounded))
+                        .foregroundColor(.white.opacity(0.3))
+                        .tracking(1)
+                    Spacer()
+                }
+                HStack(spacing: 8) {
+                    Text("\(viewModel.bars.count) bars")
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.6))
+                    Spacer()
+                    Button(action: {
+                        BarConfigWindowController.shared.show()
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "slider.horizontal.3")
                                 .font(.system(size: 10))
-                            Text("Add Bar")
+                            Text("Configure")
                                 .font(.system(size: 10, weight: .semibold, design: .rounded))
                         }
-                        .foregroundColor(.cyan.opacity(0.8))
-                        .padding(.top, 2)
+                        .foregroundColor(.cyan.opacity(0.85))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.06)))
                     }
                     .buttonStyle(.plain)
                 }
             }
-            .frame(maxHeight: 160)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.03)))
             
             // Action buttons
             HStack(spacing: 8) {
@@ -164,7 +172,6 @@ struct SettingsView: View {
         .padding(.top, 12)
         .padding(.bottom, 10)
         .onAppear {
-            editableBars = viewModel.bars
             editableAnimation = viewModel.animationConfig
             editableBarLength = viewModel.barLength
             editableBarLengthExpanded = viewModel.barLengthExpanded
@@ -198,164 +205,9 @@ struct SettingsView: View {
         }
     }
     
-    // MARK: - Column Header Row (same HStack structure as barEditor)
-    
-    private var barHeaderRow: some View {
-        HStack(spacing: 4) {
-            Text("Name")
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Text("Rule")
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Text("Color")
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Text("")
-                .frame(width: 8) // dot column
-            Text("Thk")
-                .frame(width: 36, alignment: .center)
-            Text("Seg")
-                .frame(width: 20, alignment: .center)
-            Text("#")
-                .frame(width: 28, alignment: .center)
-            Text("Ntf")
-                .frame(width: 20, alignment: .center)
-            // Spacer for delete button column
-            Text("")
-                .frame(width: 16)
-        }
-        .font(.system(size: 10, weight: .medium, design: .rounded))
-        .foregroundColor(.white.opacity(0.35))
-        .padding(.horizontal, 4)
-    }
-    
-    // MARK: - Bar Editor Row (flexible widths)
-    
-    @ViewBuilder
-    private func barEditor(index: Int) -> some View {
-        HStack(spacing: 4) {
-            // Name
-            TextField("name", text: $editableBars[index].name)
-                .textFieldStyle(.plain)
-                .font(.system(size: 10, weight: .semibold, design: .rounded))
-                .foregroundColor(.white.opacity(0.9))
-                .padding(.horizontal, 4)
-                .padding(.vertical, 2)
-                .frame(maxWidth: .infinity)
-                .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
-            
-            // Rule
-            TextField("rule", text: $editableBars[index].rule)
-                .textFieldStyle(.plain)
-                .font(.system(size: 10, design: .monospaced))
-                .foregroundColor(.cyan.opacity(0.9))
-                .padding(.horizontal, 4)
-                .padding(.vertical, 2)
-                .frame(maxWidth: .infinity)
-                .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
-            
-            // Color
-            TextField("color", text: $editableBars[index].color)
-                .textFieldStyle(.plain)
-                .font(.system(size: 10, design: .monospaced))
-                .foregroundColor(ColorParser.parse(editableBars[index].color))
-                .padding(.horizontal, 4)
-                .padding(.vertical, 2)
-                .frame(maxWidth: .infinity)
-                .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
-            
-            // Color preview dot
-            Circle()
-                .fill(ColorParser.parse(editableBars[index].color))
-                .frame(width: 8, height: 8)
-            
-            // Thickness
-            TextField("4", text: Binding(
-                get: { String(Int(editableBars[index].thickness)) },
-                set: { editableBars[index].thickness = CGFloat(Int($0) ?? 4) }
-            ))
-                .textFieldStyle(.plain)
-                .font(.system(size: 10, design: .monospaced))
-                .foregroundColor(.white.opacity(0.8))
-                .padding(.horizontal, 4)
-                .padding(.vertical, 2)
-                .frame(width: 36)
-                .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
-                .multilineTextAlignment(.center)
-            
-            // Segmented toggle
-            Button(action: {
-                editableBars[index].segmented.toggle()
-            }) {
-                Image(systemName: editableBars[index].segmented ? "square.grid.3x3.fill" : "square.grid.3x3")
-                    .font(.system(size: 10))
-                    .foregroundColor(editableBars[index].segmented ? .cyan.opacity(0.9) : .white.opacity(0.3))
-            }
-            .buttonStyle(.plain)
-            .frame(width: 20)
-            
-            // Segment count (always reserves space for alignment)
-            if editableBars[index].segmented {
-                TextField("20", text: Binding(
-                    get: { String(editableBars[index].segments) },
-                    set: { editableBars[index].segments = max(2, Int($0) ?? 20) }
-                ))
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 9, design: .monospaced))
-                    .foregroundColor(.cyan.opacity(0.7))
-                    .padding(.horizontal, 3)
-                    .padding(.vertical, 2)
-                    .frame(width: 28)
-                    .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
-                    .multilineTextAlignment(.center)
-            } else {
-                Spacer().frame(width: 28)
-            }
-            
-            // Notify toggle
-            Button(action: {
-                editableBars[index].notify.toggle()
-            }) {
-                Image(systemName: editableBars[index].notify ? "bell.fill" : "bell.slash")
-                    .font(.system(size: 10))
-                    .foregroundColor(editableBars[index].notify ? .yellow.opacity(0.9) : .white.opacity(0.3))
-            }
-            .buttonStyle(.plain)
-            .frame(width: 20)
-            
-            // Delete
-            if editableBars.count > 1 {
-                Button(action: {
-                    editableBars.remove(at: index)
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 10))
-                        .foregroundColor(.red.opacity(0.6))
-                }
-                .buttonStyle(.plain)
-                .frame(width: 16)
-            } else {
-                Spacer().frame(width: 16)
-            }
-        }
-    }
-    
-    // MARK: - Actions
-    
-    private func addBar() {
-        let newBar = BarConfig(
-            name: "bar_\(editableBars.count)",
-            rule: Defaults.barRule,
-            color: Defaults.barColor,
-            thickness: Defaults.barThickness,
-            segmented: Defaults.barSegmented,
-            segments: Defaults.barSegments,
-            notify: Defaults.barNotify
-        )
-        editableBars.append(newBar)
-    }
-    
     private func saveConfig() {
         let newConfig = AppConfig(
-            bars: editableBars,
+            bars: viewModel.bars,
             animation: editableAnimation,
             barLength: editableBarLength,
             barLengthExpanded: editableBarLengthExpanded,

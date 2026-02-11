@@ -14,7 +14,6 @@ struct TimeBarView: View {
     let timeUnit: TimeRule.Unit?
     
     @State private var animatedProgress: Double = 0
-    @State private var glowPulse: Bool = false
     
     /// Adapt animation to the bar's time unit:
     /// - seconds: short linear animation to avoid perpetual catch-up
@@ -25,6 +24,11 @@ struct TimeBarView: View {
         }
         return .easeInOut(duration: animationDuration)
     }
+
+    private var displayProgress: Double {
+        ceilingProgress(animatedProgress)
+    }
+
     
     var body: some View {
         VStack(alignment: .leading, spacing: showLabel ? 3 : 0) {
@@ -52,7 +56,6 @@ struct TimeBarView: View {
             withAnimation(progressAnimation) {
                 animatedProgress = newValue
             }
-            checkThresholdGlow(newValue)
         }
         .onAppear {
             animatedProgress = progress
@@ -72,8 +75,7 @@ struct TimeBarView: View {
                 // Filled portion
                 Capsule()
                     .fill(barColor)
-                    .frame(width: max(barConfig.thickness, geo.size.width * animatedProgress), height: barConfig.thickness)
-                    .shadow(color: barColor, radius: glowPulse ? 8 : 2)
+                    .frame(width: max(barConfig.thickness, geo.size.width * displayProgress), height: barConfig.thickness)
             }
         }
         .frame(height: barConfig.thickness)
@@ -86,7 +88,7 @@ struct TimeBarView: View {
             let gap: CGFloat = 1.5
             let totalGaps = CGFloat(barConfig.segments - 1) * gap
             let segWidth = (geo.size.width - totalGaps) / CGFloat(barConfig.segments)
-            let filledCount = Int(round(animatedProgress * Double(barConfig.segments)))
+            let filledCount = segmentedStepCount(animatedProgress)
             
             HStack(spacing: gap) {
                 ForEach(0..<barConfig.segments, id: \.self) { i in
@@ -94,28 +96,29 @@ struct TimeBarView: View {
                     RoundedRectangle(cornerRadius: 1.5)
                         .fill(isFilled ? barColor : Color.white.opacity(0.06))
                         .frame(width: segWidth, height: barConfig.thickness)
-                        .shadow(color: isFilled ? barColor.opacity(glowPulse ? 0.6 : 0.2) : .clear, radius: isFilled ? 3 : 0)
                 }
             }
         }
         .frame(height: barConfig.thickness)
     }
-    
-    /// Flash glow when crossing 25/50/75/100 thresholds
-    private func checkThresholdGlow(_ newProgress: Double) {
-        let thresholds: [Double] = [0.25, 0.5, 0.75, 1.0]
-        let oldBucket = thresholds.filter { $0 <= animatedProgress }.count
-        let newBucket = thresholds.filter { $0 <= newProgress }.count
-        
-        if newBucket != oldBucket {
-            withAnimation(.easeInOut(duration: 0.3)) {
-                glowPulse = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    glowPulse = false
-                }
-            }
+
+    private func ceilingProgress(_ value: Double) -> Double {
+        let clamped = min(max(value, 0), 1)
+        if barConfig.segmented {
+            let steps = segmentedStepCount(clamped)
+            let segments = Double(max(1, barConfig.segments))
+            return Double(steps) / segments
         }
+        let step = 0.01
+        let ceiled = ceil(clamped / step) * step
+        return min(max(ceiled, 0), 1)
+    }
+
+    private func segmentedStepCount(_ value: Double) -> Int {
+        let segments = max(1, barConfig.segments)
+        let clamped = min(max(value, 0), 1)
+        let rawSteps = clamped * Double(segments)
+        let steps = Int((rawSteps - 1e-9).rounded(.up))
+        return min(max(steps, 0), segments)
     }
 }

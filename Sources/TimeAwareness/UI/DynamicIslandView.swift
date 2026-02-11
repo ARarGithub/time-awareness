@@ -30,27 +30,41 @@ class DynamicIslandViewModel: ObservableObject {
     /// Time units keyed by bar name — used to adapt animation curves
     private(set) var barUnits: [String: TimeRule.Unit] = [:]
     
-    private var timer: Timer?
+    private let tickManager = TickManager()
     private var rules: [String: TimeRule] = [:]
     private var barConfigMap: [String: BarConfig] = [:]  // O(1) lookup
     private var notificationDismissWork: DispatchWorkItem?
     /// True while an auto-notification hover is active (prevents mouse-leave from dismissing)
     private(set) var isNotifying: Bool = false
-    /// Tracks the current day-of-year to detect day changes for day-based bars
-    private var lastDayOfYear: Int = -1
+    private let timeDisplayRegistrationName = "__time_display__"
     private lazy var timeFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "HH:mm:ss"
         return f
     }()
+
+    private var idleBars: [BarConfig] {
+        bars.filter { $0.showInIdle }
+    }
+
+    private var expandedBars: [BarConfig] {
+        bars.filter { $0.showInExpanded }
+    }
+
+    var idleBarGap: CGFloat { 3 }
+    var idlePaddingTop: CGFloat { 2 }
+    var idlePaddingBottom: CGFloat { 2 }
+    var idlePaddingHorizontal: CGFloat { 16 }
     
     init() {
+        tickManager.onTick = { [weak self] date, changed in
+            self?.handleTick(at: date, changed: changed)
+        }
         reloadConfig()
-        startTimer()
+        updateTickRegistrations()
     }
     
     deinit {
-        timer?.invalidate()
     }
     
     func reloadConfig() {
@@ -85,11 +99,7 @@ class DynamicIslandViewModel: ObservableObject {
             }
         }
         
-        // Reset day tracker so day-based bars update immediately
-        lastDayOfYear = -1
-        
-        // Immediately update progress
-        updateProgress()
+        updateTickRegistrations()
     }
     
     func transitionTo(_ newState: IslandState) {
@@ -99,6 +109,7 @@ class DynamicIslandViewModel: ObservableObject {
         )) {
             state = newState
         }
+        updateTickRegistrations()
     }
     
     // MARK: - Sizing (these are the CONTENT pill sizes, not including the top flare)
@@ -117,19 +128,21 @@ class DynamicIslandViewModel: ObservableObject {
     }
     
     var idleSize: CGSize {
-        let barCount = max(bars.count, 1)
-        let totalThickness = bars.reduce(CGFloat(0)) { $0 + $1.thickness }
-        let gaps = CGFloat(max(barCount - 1, 0)) * 3
-        let height: CGFloat = 10 + totalThickness + gaps + 10
-        // Idle width = barLength + horizontal padding (32)
-        let width: CGFloat = barLength + 32
+        let visibleBars = idleBars
+        let barCount = max(visibleBars.count, 1)
+        let totalThickness = visibleBars.reduce(CGFloat(0)) { $0 + $1.thickness }
+        let gaps = CGFloat(max(barCount - 1, 0)) * idleBarGap
+        let height: CGFloat = idlePaddingTop + totalThickness + gaps + idlePaddingBottom
+        // Idle width = barLength + horizontal padding (2 * 16)
+        let width: CGFloat = barLength + (idlePaddingHorizontal * 2)
         return CGSize(width: max(width, 100), height: max(height, 30))
     }
     
     var hoveredSize: CGSize {
-        let barCount = max(bars.count, 1)
+        let visibleBars = expandedBars
+        let barCount = max(visibleBars.count, 1)
         let labelHeight: CGFloat = nameSize + 4  // label line height
-        let barRowHeight: CGFloat = labelHeight + 3 + max(bars.map({ $0.thickness }).max() ?? 4, 4)
+        let barRowHeight: CGFloat = labelHeight + 3 + max(visibleBars.map({ $0.thickness }).max() ?? 4, 4)
         let barHeight: CGFloat = CGFloat(barCount) * barRowHeight + CGFloat(barCount - 1) * 4
         let timeHeight: CGFloat = timeTextSize + 6  // time text + spacing
         let height: CGFloat = 16 + timeHeight + barHeight + 16
@@ -138,70 +151,89 @@ class DynamicIslandViewModel: ObservableObject {
     }
     
     var expandedSize: CGSize {
-        let barCount = max(bars.count, 1)
+        let visibleBars = expandedBars
+        let barCount = max(visibleBars.count, 1)
         let labelHeight: CGFloat = nameSize + 4
-        let barRowHeight: CGFloat = labelHeight + 3 + max(bars.map({ $0.thickness }).max() ?? 4, 4)
-        let barHeight: CGFloat = CGFloat(barCount) * barRowHeight + CGFloat(barCount - 1) * 6
+        let barRowSpacing: CGFloat = 6
+        let barRowHeight: CGFloat = labelHeight + 3 + max(visibleBars.map({ $0.thickness }).max() ?? 4, 4)
+        let barHeight: CGFloat = CGFloat(barCount) * barRowHeight + CGFloat(barCount - 1) * barRowSpacing
         let timeHeight: CGFloat = timeTextSize + 8  // time text + spacing below
-        let height: CGFloat = 16 + timeHeight + barHeight + 16 + 36 + 12
-        let width: CGFloat = barLengthExpanded + 40
+        let expandedPaddingTop: CGFloat = 14
+        let expandedPaddingBottom: CGFloat = 12
+        let expandedPaddingHorizontal: CGFloat = 20
+        let expandedButtonRowHeight: CGFloat = 36
+        let expandedButtonRowSpacing: CGFloat = 12
+        let height: CGFloat = expandedPaddingTop + timeHeight + barHeight + expandedPaddingBottom + expandedButtonRowHeight + expandedButtonRowSpacing
+        let width: CGFloat = barLengthExpanded + (expandedPaddingHorizontal * 2)
         return CGSize(width: max(width, 200), height: max(height, 80))
     }
     
     var settingsSize: CGSize {
-        let barCount = max(bars.count, 1)
-        let editorRowHeight: CGFloat = 24
-        let barsHeight: CGFloat = CGFloat(barCount) * editorRowHeight + CGFloat(barCount - 1) * 6
-        let height: CGFloat = 30 + min(barsHeight + 30, 170) + 40 + 16
-        let width: CGFloat = max(barLengthExpanded + 40, 380)
-        return CGSize(width: width, height: max(height, 140))
+        let width: CGFloat = max(barLengthExpanded + 40, 340)
+        return CGSize(width: width, height: 190)
     }
     
-    // MARK: - Timer
+    // MARK: - Tick Manager
     
-    private func startTimer() {
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            self?.updateProgress()
+    private func handleTick(at now: Date, changed: Set<TickGranularity>) {
+        updateProgress(at: now, changed: changed)
+    }
+    
+    private func updateTickRegistrations() {
+        var registrations: [String: TickGranularity] = [:]
+        
+        for bar in visibleBarsForCurrentState() {
+            guard let rule = rules[bar.name] else { continue }
+            registrations[bar.name] = granularity(for: rule)
+        }
+        
+        if shouldShowTimeDisplay(for: state) {
+            registrations[timeDisplayRegistrationName] = timeDisplayGranularity()
+        }
+        
+        tickManager.setRegistrations(registrations)
+        let updateGranularities = Set(registrations.values)
+        if !updateGranularities.isEmpty {
+            updateProgress(at: Date(), changed: updateGranularities)
         }
     }
     
-    private func updateProgress() {
-        let now = Date()
-        let calendar = Calendar.current
-        
-        // Update current time string
-        let newTimeString = timeFormatter.string(from: now)
-        
-        // Detect day change for day-based bar optimization
-        let currentDayOfYear = calendar.ordinality(of: .day, in: .year, for: now) ?? 0
-        let dayChanged = currentDayOfYear != lastDayOfYear
-        
-        // Per-bar diffing: only update bars whose displayed value actually changed.
+    private func updateProgress(at now: Date, changed: Set<TickGranularity>) {
+        let visibleNames = Set(visibleBarsForCurrentState().map { $0.name })
         var updates: [String: Double] = [:]
-        for (name, rule) in rules {
-            // Skip day-based bars unless the day actually changed
-            if rule.isDayBased && !dayChanged { continue }
+        
+        for name in visibleNames {
+            guard let rule = rules[name] else { continue }
+            let ruleGranularity = granularity(for: rule)
+            guard changed.contains(ruleGranularity) else { continue }
             
             let newValue = rule.progress(at: now)
             let oldValue = barProgresses[name] ?? -1
             let isSegmented = barConfigMap[name]?.segmented ?? false
-            let granularity = isSegmented ? (barConfigMap[name]?.segments ?? 20) : 100
-            if Int(newValue * Double(granularity)) != Int(oldValue * Double(granularity)) {
+            let segments = barConfigMap[name]?.segments ?? 20
+            let bucketCount = isSegmented ? segments : 100
+            if Int(newValue * Double(bucketCount)) != Int(oldValue * Double(bucketCount)) {
                 updates[name] = newValue
             }
         }
         
-        if dayChanged {
-            lastDayOfYear = currentDayOfYear
+        var updatedTimeString: String?
+        if shouldShowTimeDisplay(for: state) {
+            let timeGranularity = timeDisplayGranularity()
+            if changed.contains(timeGranularity) {
+                let newTimeString = timeFormatter.string(from: now)
+                if newTimeString != currentTimeString {
+                    updatedTimeString = newTimeString
+                }
+            }
         }
         
-        let timeChanged = newTimeString != currentTimeString
-        guard !updates.isEmpty || timeChanged else { return }
+        guard !updates.isEmpty || updatedTimeString != nil else { return }
         
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-            if timeChanged {
-                self.currentTimeString = newTimeString
+            if let updatedTimeString = updatedTimeString {
+                self.currentTimeString = updatedTimeString
             }
             
             // Check for notification: any bar with notify=true just completed a cycle.
@@ -237,6 +269,38 @@ class DynamicIslandViewModel: ObservableObject {
                 self.notificationDismissWork = work
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: work)
             }
+        }
+    }
+    
+    private func visibleBarsForCurrentState() -> [BarConfig] {
+        switch state {
+        case .idle:
+            return idleBars
+        case .hovered, .expanded:
+            return expandedBars
+        case .settings:
+            return []
+        }
+    }
+    
+    private func shouldShowTimeDisplay(for state: IslandState) -> Bool {
+        state == .hovered || state == .expanded
+    }
+    
+    private func timeDisplayGranularity() -> TickGranularity {
+        timeShowSeconds ? .second : .minute
+    }
+    
+    private func granularity(for rule: TimeRule) -> TickGranularity {
+        switch rule.unit {
+        case .seconds:
+            return .second
+        case .minutes:
+            return .minute
+        case .hours:
+            return .hour
+        case .days, .week, .month, .year:
+            return .day
         }
     }
 }
@@ -434,7 +498,7 @@ struct DynamicIslandView: View {
     
     private var idleContent: some View {
         VStack(spacing: 3) {
-            ForEach(viewModel.bars) { bar in
+            ForEach(viewModel.bars.filter { $0.showInIdle }) { bar in
                 TimeBarView(
                     barConfig: bar,
                     progress: viewModel.barProgresses[bar.name] ?? 0,
@@ -446,9 +510,9 @@ struct DynamicIslandView: View {
                 )
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 8)
+        .padding(.horizontal, viewModel.idlePaddingHorizontal)
+        .padding(.top, viewModel.idlePaddingTop)
+        .padding(.bottom, viewModel.idlePaddingBottom)
     }
     
     // MARK: - Hovered Content
@@ -461,7 +525,7 @@ struct DynamicIslandView: View {
                 .foregroundColor(.white.opacity(0.85))
                 .frame(maxWidth: .infinity, alignment: .center)
             
-            ForEach(viewModel.bars) { bar in
+            ForEach(viewModel.bars.filter { $0.showInExpanded }) { bar in
                 TimeBarView(
                     barConfig: bar,
                     progress: viewModel.barProgresses[bar.name] ?? 0,
@@ -488,7 +552,7 @@ struct DynamicIslandView: View {
                 .foregroundColor(.white.opacity(0.85))
                 .frame(maxWidth: .infinity, alignment: .center)
             
-            ForEach(viewModel.bars) { bar in
+            ForEach(viewModel.bars.filter { $0.showInExpanded }) { bar in
                 TimeBarView(
                     barConfig: bar,
                     progress: viewModel.barProgresses[bar.name] ?? 0,
