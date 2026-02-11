@@ -369,7 +369,7 @@ class DynamicIslandViewModel: ObservableObject {
         let timeString = timeFormatter.string(from: now)
         let content = UNMutableNotificationContent()
         content.title = "Time Alert"
-        content.body = "Current time is \(timeString)."
+        content.body = "現在時間是 \(timeString)."
         content.sound = .default
         let request = UNNotificationRequest(
             identifier: UUID().uuidString,
