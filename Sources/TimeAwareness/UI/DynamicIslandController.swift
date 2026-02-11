@@ -12,6 +12,7 @@ class DynamicIslandController: ObservableObject {
     /// Throttle mouse move callbacks to ~60fps
     private var lastMouseMoveTime: CFAbsoluteTime = 0
     private let mouseMoveThrottleInterval: CFAbsoluteTime = 1.0 / 60.0  // ~16ms
+    private var lastIsInPill: Bool?
     
     // The view model shared with SwiftUI
     let viewModel = DynamicIslandViewModel()
@@ -155,10 +156,17 @@ class DynamicIslandController: ObservableObject {
         // Get the pill's current frame in screen coordinates
         let pillFrame = currentPillScreenFrame()
         let isInPill = pillFrame.contains(mouseLocation)
+
+        if lastIsInPill == nil {
+            lastIsInPill = isInPill
+            if viewModel.state == .idle {
+                return
+            }
+        }
         
         switch viewModel.state {
         case .idle:
-            if isInPill {
+            if isInPill && lastIsInPill == false {
                 window.ignoresMouseEvents = false
                 viewModel.transitionTo(.hovered)
             }
@@ -180,6 +188,8 @@ class DynamicIslandController: ObservableObject {
                 // Don't auto-collapse from settings - user needs to interact
             }
         }
+
+        lastIsInPill = isInPill
     }
     
     private func handleGlobalClick(_ event: NSEvent) {

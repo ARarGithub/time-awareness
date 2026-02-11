@@ -114,7 +114,7 @@ private func yamlDouble(_ value: Any?) -> Double? {
 /// Change a value here and it propagates everywhere.
 enum Defaults {
     // Bar
-    static let barRule = "60s"
+    static let barRule = "minute"
     static let barColor = "#80C4FFCC"
     static let barThickness: CGFloat = 3
     static let barSegmented = false
@@ -132,7 +132,6 @@ enum Defaults {
     static let timeShowSeconds = true
     
     // Animation
-    static let idleGlow = true
     static let expandSpringResponse = 0.45
     static let expandSpringDamping = 0.68
     static let barAnimationDuration = 1.0
@@ -163,27 +162,24 @@ struct BarConfig: Codable, Identifiable, Equatable {
             BarConfig(name: "Month",   rule: "month",   color: "#80CBC4CC", thickness: Defaults.barThickness, segmented: false, segments: Defaults.barSegments, notify: false, showInIdle: true, showInExpanded: true),
             BarConfig(name: "Week",    rule: "week",    color: "#A5D6A7CC", thickness: Defaults.barThickness, segmented: true,  segments: 7, notify: false, showInIdle: true, showInExpanded: true),
             BarConfig(name: "Day",     rule: "16h 8h",  color: "#FF80ABCC", thickness: Defaults.barThickness, segmented: false, segments: Defaults.barSegments, notify: false, showInIdle: true, showInExpanded: true),
-            BarConfig(name: "Hour", rule: "60m",     color: "#FFD580CC", thickness: Defaults.barThickness, segmented: false, segments: Defaults.barSegments, notify: false, showInIdle: true, showInExpanded: true),
-            BarConfig(name: "Minute", rule: "60s",     color: "#80C4FFCC", thickness: Defaults.barThickness, segmented: false, segments: Defaults.barSegments, notify: false, showInIdle: true, showInExpanded: true),
+            BarConfig(name: "Hour", rule: "hour",   color: "#FFD580CC", thickness: Defaults.barThickness, segmented: false, segments: Defaults.barSegments, notify: false, showInIdle: true, showInExpanded: true),
+            BarConfig(name: "Minute", rule: "minute", color: "#80C4FFCC", thickness: Defaults.barThickness, segmented: false, segments: Defaults.barSegments, notify: false, showInIdle: true, showInExpanded: true),
         ]
     }
 }
 
 struct AnimationConfig: Codable, Equatable {
-    var idleGlow: Bool
     var expandSpringResponse: Double
     var expandSpringDamping: Double
     var barAnimationDuration: Double
     
     static let defaultAnimation = AnimationConfig(
-        idleGlow: Defaults.idleGlow,
         expandSpringResponse: Defaults.expandSpringResponse,
         expandSpringDamping: Defaults.expandSpringDamping,
         barAnimationDuration: Defaults.barAnimationDuration
     )
     
     enum CodingKeys: String, CodingKey {
-        case idleGlow = "idle_glow"
         case expandSpringResponse = "expand_spring_response"
         case expandSpringDamping = "expand_spring_damping"
         case barAnimationDuration = "bar_animation_duration"
@@ -262,9 +258,6 @@ struct AppConfig: Equatable {
         // Parse animation
         var animation = AnimationConfig.defaultAnimation
         if let animDict = dict["animation"] as? [String: Any] {
-            if let idleGlow = animDict["idle_glow"] as? Bool {
-                animation.idleGlow = idleGlow
-            }
             if let resp = yamlDouble(animDict["expand_spring_response"]) {
                 animation.expandSpringResponse = resp
             }
@@ -323,7 +316,6 @@ struct AppConfig: Equatable {
         }
         lines.append("")
         lines.append("animation:")
-        lines.append("  idle_glow: \(animation.idleGlow)")
         lines.append("  expand_spring_response: \(animation.expandSpringResponse)")
         lines.append("  expand_spring_damping: \(animation.expandSpringDamping)")
         lines.append("  bar_animation_duration: \(animation.barAnimationDuration)")

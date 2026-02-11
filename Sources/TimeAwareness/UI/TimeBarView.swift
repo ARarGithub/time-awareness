@@ -84,26 +84,51 @@ struct TimeBarView: View {
     // MARK: - Segmented Bar
     
     private var segmentedBar: some View {
-        GeometryReader { geo in
-            let gap: CGFloat = 1.5
-            let totalGaps = CGFloat(barConfig.segments - 1) * gap
-            let segWidth = (geo.size.width - totalGaps) / CGFloat(barConfig.segments)
-            let filledCount = segmentedStepCount(animatedProgress)
-            
-            HStack(spacing: gap) {
-                ForEach(0..<barConfig.segments, id: \.self) { i in
-                    let isFilled = i < filledCount
-                    RoundedRectangle(cornerRadius: 1.5)
-                        .fill(isFilled ? barColor : Color.white.opacity(0.06))
-                        .frame(width: segWidth, height: barConfig.thickness)
+        EquatableView(content: SegmentedBarView(
+            segments: barConfig.segments,
+            thickness: barConfig.thickness,
+            filledCount: segmentedStepCount(animatedProgress),
+            barColor: barColor,
+            colorKey: barConfig.color
+        ))
+    }
+
+    private struct SegmentedBarView: View, Equatable {
+        let segments: Int
+        let thickness: CGFloat
+        let filledCount: Int
+        let barColor: Color
+        let colorKey: String
+
+        static func == (lhs: SegmentedBarView, rhs: SegmentedBarView) -> Bool {
+            lhs.segments == rhs.segments &&
+            lhs.thickness == rhs.thickness &&
+            lhs.filledCount == rhs.filledCount &&
+            lhs.colorKey == rhs.colorKey
+        }
+
+        var body: some View {
+            GeometryReader { geo in
+                let gap: CGFloat = 1.5
+                let totalGaps = CGFloat(segments - 1) * gap
+                let segWidth = (geo.size.width - totalGaps) / CGFloat(segments)
+
+                HStack(spacing: gap) {
+                    ForEach(0..<segments, id: \.self) { i in
+                        let isFilled = i < filledCount
+                        RoundedRectangle(cornerRadius: 1.5)
+                            .fill(isFilled ? barColor : Color.white.opacity(0.06))
+                            .frame(width: segWidth, height: thickness)
+                    }
                 }
             }
+            .frame(height: thickness)
         }
-        .frame(height: barConfig.thickness)
     }
 
     private func ceilingProgress(_ value: Double) -> Double {
         let clamped = min(max(value, 0), 1)
+        // Dead code for now.
         if barConfig.segmented {
             let steps = segmentedStepCount(clamped)
             let segments = Double(max(1, barConfig.segments))

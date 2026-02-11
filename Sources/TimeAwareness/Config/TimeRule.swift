@@ -1,6 +1,6 @@
 import Foundation
 
-/// Parses rule strings like "60s", "60m", "24h", "16h 8h", "year", "month", "week" and computes progress.
+/// Parses rule strings like "60s", "60m", "24h", "16h 8h", "minute", "hour", "year", "month", "week" and computes progress.
 struct TimeRule {
     enum Unit {
         case seconds
@@ -30,6 +30,8 @@ struct TimeRule {
     ///   "60m"    → 60-minute cycle (resets every hour)
     ///   "24h"    → 24-hour cycle from midnight
     ///   "16h 8h" → 16-hour duration, starting at 8h from midnight
+    ///   "minute" → 60-second cycle (alias of "60s")
+    ///   "hour"   → 60-minute cycle (alias of "60m")
     ///   "365d"   → day-of-year / 365
     ///   "year"   → day-of-year / days-in-current-year (auto leap year)
     ///   "month"  → day-of-month / days-in-current-month
@@ -39,6 +41,10 @@ struct TimeRule {
         
         // Named rules
         switch trimmed {
+        case "minute":
+            return TimeRule(totalDuration: 60, offset: 0, unit: .seconds)
+        case "hour":
+            return TimeRule(totalDuration: 3600, offset: 0, unit: .minutes)
         case "year":
             return TimeRule(totalDuration: 0, offset: 0, unit: .year)
         case "month":

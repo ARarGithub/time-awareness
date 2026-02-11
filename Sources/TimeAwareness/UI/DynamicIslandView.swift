@@ -260,7 +260,8 @@ class DynamicIslandViewModel: ObservableObject {
             let isSegmented = barConfigMap[name]?.segmented ?? false
             let segments = barConfigMap[name]?.segments ?? segmentedDefaultSegments
             let bucketCount = isSegmented ? segments : unsegmentedBucketCount
-            if Int(newValue * Double(bucketCount)) != Int(oldValue * Double(bucketCount)) {
+            let forceValueUpdate = isSegmented && (rule.unit == .seconds || rule.unit == .minutes)
+            if forceValueUpdate || Int(newValue * Double(bucketCount)) != Int(oldValue * Double(bucketCount)) {
                 updates[name] = newValue
             }
         }
@@ -487,19 +488,13 @@ struct DynamicIslandView: View {
         static let quitTextOpacity: Double = 0.7
         static let quitBackgroundOpacity: Double = 0.08
         static let quitBorderOpacity: Double = 0.2
-        static let idleBorderBaseOpacity: Double = 0.06
-        static let idleBorderGlowScale: Double = 0.04
-        static let idleBorderBottomOpacity: Double = 0.04
+        static let idleBorderOpacity: Double = 0.08
         static let hoveredBorderCyanOpacity: Double = 0.4
         static let hoveredBorderBlueOpacity: Double = 0.3
         static let expandedBorderPurpleOpacity: Double = 0.3
         static let expandedBorderBlueOpacity: Double = 0.2
-        static let idleShadowOpacity: Double = 0.4
-        static let hoveredShadowOpacity: Double = 0.2
-        static let expandedShadowOpacity: Double = 0.15
     }
 
-    @State private var glowOpacity: Double = Style.glowStartOpacity
     
     private var pillWidth: CGFloat {
         viewModel.currentPillSize.width
@@ -549,7 +544,6 @@ struct DynamicIslandView: View {
                         DynamicIslandShape(bottomRadius: bottomRadius, topFlare: topFlare)
                             .stroke(borderGradient, lineWidth: viewModel.state == .idle ? Style.borderIdleLineWidth : Style.borderActiveLineWidth)
                     )
-                    .shadow(color: shadowColor, radius: viewModel.state == .idle ? Style.shadowIdleRadius : Style.shadowActiveRadius, y: Style.shadowYOffset)
                 
                 // Content
                 contentForState
@@ -565,11 +559,6 @@ struct DynamicIslandView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .onAppear {
-            if viewModel.animationConfig.idleGlow {
-                startIdleGlow()
-            }
-        }
     }
     
     // MARK: - Content
@@ -731,7 +720,7 @@ struct DynamicIslandView: View {
         switch viewModel.state {
         case .idle:
             return LinearGradient(
-                colors: [.clear, .white.opacity(Style.idleBorderBaseOpacity + glowOpacity * Style.idleBorderGlowScale), .white.opacity(Style.idleBorderBottomOpacity)],
+                colors: [.clear, .white.opacity(Style.idleBorderOpacity), .clear],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -750,21 +739,6 @@ struct DynamicIslandView: View {
         }
     }
     
-    private var shadowColor: Color {
-        switch viewModel.state {
-        case .idle: return .black.opacity(Style.idleShadowOpacity)
-        case .hovered: return .cyan.opacity(Style.hoveredShadowOpacity)
-        case .expanded, .settings: return .purple.opacity(Style.expandedShadowOpacity)
-        }
-    }
-    
-    // MARK: - Animations
-    
-    private func startIdleGlow() {
-        withAnimation(.easeInOut(duration: Style.glowDuration).repeatForever(autoreverses: true)) {
-            glowOpacity = Style.glowEndOpacity
-        }
-    }
 }
 
 // MARK: - Root Wrapper View (avoids AnyView type erasure)
