@@ -3,88 +3,149 @@ import SwiftUI
 /// Inline settings editor displayed inside the expanded Dynamic Island.
 struct SettingsView: View {
     @ObservedObject var viewModel: DynamicIslandViewModel
+
+    private enum Style {
+        static let headerFontSize: CGFloat = 12
+        static let headerOpacity: Double = 0.9
+        static let sectionTitleFontSize: CGFloat = 8
+        static let sectionTitleOpacity: Double = 0.3
+        static let sectionTitleTracking: CGFloat = 1
+        static let sectionCornerRadius: CGFloat = 6
+        static let sectionBackgroundOpacity: Double = 0.03
+        static let fieldLabelFontSize: CGFloat = 9
+        static let fieldLabelOpacity: Double = 0.45
+        static let fieldTextFontSize: CGFloat = 9
+        static let fieldTextOpacity: Double = 0.8
+        static let fieldPaddingHorizontal: CGFloat = 4
+        static let fieldPaddingVertical: CGFloat = 2
+        static let fieldCornerRadius: CGFloat = 4
+        static let toggleLabelFontSize: CGFloat = 9
+        static let toggleLabelOpacity: Double = 0.45
+        static let toggleValueFontSize: CGFloat = 9
+        static let toggleActiveOpacity: Double = 0.9
+        static let toggleInactiveOpacity: Double = 0.4
+        static let togglePaddingHorizontal: CGFloat = 5
+        static let togglePaddingVertical: CGFloat = 2
+        static let toggleCornerRadius: CGFloat = 4
+        static let toggleBackgroundOpacity: Double = 0.06
+        static let barsCountFontSize: CGFloat = 10
+        static let barsCountOpacity: Double = 0.6
+        static let configureButtonFontSize: CGFloat = 10
+        static let configureButtonOpacity: Double = 0.85
+        static let configureButtonPaddingHorizontal: CGFloat = 8
+        static let configureButtonPaddingVertical: CGFloat = 4
+        static let configureButtonCornerRadius: CGFloat = 6
+        static let configureButtonBackgroundOpacity: Double = 0.06
+        static let actionButtonFontSize: CGFloat = 11
+        static let actionButtonOpacity: Double = 0.6
+        static let actionButtonPaddingHorizontal: CGFloat = 10
+        static let actionButtonPaddingVertical: CGFloat = 4
+        static let actionButtonBackgroundOpacity: Double = 0.08
+        static let saveButtonFontSize: CGFloat = 11
+        static let saveButtonPaddingHorizontal: CGFloat = 12
+        static let saveButtonPaddingVertical: CGFloat = 4
+        static let saveButtonGreenBackgroundOpacity: Double = 0.15
+        static let saveButtonCyanBackgroundOpacity: Double = 0.2
+        static let saveButtonStrokeOpacity: Double = 0.3
+        static let saveButtonStrokeWidth: CGFloat = 0.5
+        static let fieldWidthIdle: CGFloat = 40
+        static let fieldWidthExpand: CGFloat = 40
+        static let fieldWidthName: CGFloat = 32
+        static let fieldWidthTimeSize: CGFloat = 32
+        static let defaultBarLength: CGFloat = 200
+        static let defaultBarLengthExpanded: CGFloat = 300
+        static let defaultNameSize: CGFloat = 10
+        static let defaultTimeTextSize: CGFloat = 14
+        static let placeholderIdle: String = "200"
+        static let placeholderExpand: String = "300"
+        static let placeholderName: String = "10"
+        static let placeholderTimeSize: String = "14"
+        static let saveAnimationResponse: Double = 0.3
+        static let saveAnimationDamping: Double = 0.7
+        static let saveResetDelay: Double = 1.5
+    }
     
     @State private var editableAnimation: AnimationConfig = .defaultAnimation
-    @State private var editableBarLength: CGFloat = 200
-    @State private var editableBarLengthExpanded: CGFloat = 300
-    @State private var editableNameSize: CGFloat = 10
-    @State private var editableTimeTextSize: CGFloat = 14
+    @State private var editableBarLength: CGFloat = Style.defaultBarLength
+    @State private var editableBarLengthExpanded: CGFloat = Style.defaultBarLengthExpanded
+    @State private var editableNameSize: CGFloat = Style.defaultNameSize
+    @State private var editableTimeTextSize: CGFloat = Style.defaultTimeTextSize
     @State private var editableTimeFormat: String = "24h"
     @State private var editableTimeShowSeconds: Bool = true
     @State private var showSaved: Bool = false
     
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: viewModel.settingsContentSpacing) {
             // Header
             HStack {
                 Text("Settings")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundColor(.white.opacity(0.9))
+                    .font(.system(size: Style.headerFontSize, weight: .bold, design: .rounded))
+                    .foregroundColor(.white.opacity(Style.headerOpacity))
                 Spacer()
             }
             
             // Display section
-            VStack(spacing: 4) {
+            VStack(spacing: viewModel.settingsSectionSpacing) {
                 HStack {
                     Text("DISPLAY")
-                        .font(.system(size: 8, weight: .bold, design: .rounded))
-                        .foregroundColor(.white.opacity(0.3))
-                        .tracking(1)
+                        .font(.system(size: Style.sectionTitleFontSize, weight: .bold, design: .rounded))
+                        .foregroundColor(.white.opacity(Style.sectionTitleOpacity))
+                        .tracking(Style.sectionTitleTracking)
                     Spacer()
                 }
-                HStack(spacing: 10) {
-                    settingsField("Idle", value: $editableBarLength, placeholder: "200", width: 40)
-                    settingsField("Expand", value: $editableBarLengthExpanded, placeholder: "300", width: 40)
-                    settingsField("Name", value: $editableNameSize, placeholder: "10", width: 32)
+                HStack(spacing: viewModel.settingsFieldRowSpacing) {
+                    settingsField("Idle", value: $editableBarLength, placeholder: Style.placeholderIdle, width: Style.fieldWidthIdle)
+                    settingsField("Expand", value: $editableBarLengthExpanded, placeholder: Style.placeholderExpand, width: Style.fieldWidthExpand)
+                    settingsField("Name", value: $editableNameSize, placeholder: Style.placeholderName, width: Style.fieldWidthName)
                     Spacer()
                 }
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.03)))
+            .padding(.horizontal, viewModel.settingsSectionPaddingHorizontal)
+            .padding(.vertical, viewModel.settingsSectionPaddingVertical)
+            .background(RoundedRectangle(cornerRadius: Style.sectionCornerRadius).fill(Color.white.opacity(Style.sectionBackgroundOpacity)))
             
             // Time section
-            VStack(spacing: 4) {
+            VStack(spacing: viewModel.settingsSectionSpacing) {
                 HStack {
                     Text("TIME")
-                        .font(.system(size: 8, weight: .bold, design: .rounded))
-                        .foregroundColor(.white.opacity(0.3))
-                        .tracking(1)
+                        .font(.system(size: Style.sectionTitleFontSize, weight: .bold, design: .rounded))
+                        .foregroundColor(.white.opacity(Style.sectionTitleOpacity))
+                        .tracking(Style.sectionTitleTracking)
                     Spacer()
                 }
-                HStack(spacing: 10) {
-                    settingsField("Size", value: $editableTimeTextSize, placeholder: "14", width: 32)
+                HStack(spacing: viewModel.settingsFieldRowSpacing) {
+                    settingsField("Size", value: $editableTimeTextSize, placeholder: Style.placeholderTimeSize, width: Style.fieldWidthTimeSize)
                     
-                    HStack(spacing: 3) {
+                    HStack(spacing: viewModel.settingsToggleSpacing) {
                         Text("Format")
-                            .font(.system(size: 9, weight: .medium, design: .rounded))
-                            .foregroundColor(.white.opacity(0.45))
+                            .font(.system(size: Style.toggleLabelFontSize, weight: .medium, design: .rounded))
+                            .foregroundColor(.white.opacity(Style.toggleLabelOpacity))
                         Button(action: {
                             editableTimeFormat = editableTimeFormat == "24h" ? "12h" : "24h"
                         }) {
                             Text(editableTimeFormat)
-                                .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                                .foregroundColor(.cyan.opacity(0.9))
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 2)
-                                .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
+                                .font(.system(size: Style.toggleValueFontSize, weight: .semibold, design: .monospaced))
+                                .foregroundColor(.cyan.opacity(Style.toggleActiveOpacity))
+                                .padding(.horizontal, Style.togglePaddingHorizontal)
+                                .padding(.vertical, Style.togglePaddingVertical)
+                                .background(RoundedRectangle(cornerRadius: Style.toggleCornerRadius).fill(Color.white.opacity(Style.toggleBackgroundOpacity)))
                         }
                         .buttonStyle(.plain)
                     }
                     
-                    HStack(spacing: 3) {
+                    HStack(spacing: viewModel.settingsToggleSpacing) {
                         Text("Sec")
-                            .font(.system(size: 9, weight: .medium, design: .rounded))
-                            .foregroundColor(.white.opacity(0.45))
+                            .font(.system(size: Style.toggleLabelFontSize, weight: .medium, design: .rounded))
+                            .foregroundColor(.white.opacity(Style.toggleLabelOpacity))
                         Button(action: {
                             editableTimeShowSeconds.toggle()
                         }) {
                             Text(editableTimeShowSeconds ? "ON" : "OFF")
-                                .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                                .foregroundColor(editableTimeShowSeconds ? .cyan.opacity(0.9) : .white.opacity(0.4))
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 2)
-                                .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
+                                .font(.system(size: Style.toggleValueFontSize, weight: .semibold, design: .monospaced))
+                                .foregroundColor(editableTimeShowSeconds ? .cyan.opacity(Style.toggleActiveOpacity) : .white.opacity(Style.toggleInactiveOpacity))
+                                .padding(.horizontal, Style.togglePaddingHorizontal)
+                                .padding(.vertical, Style.togglePaddingVertical)
+                                .background(RoundedRectangle(cornerRadius: Style.toggleCornerRadius).fill(Color.white.opacity(Style.toggleBackgroundOpacity)))
                         }
                         .buttonStyle(.plain)
                     }
@@ -92,85 +153,85 @@ struct SettingsView: View {
                     Spacer()
                 }
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.03)))
+            .padding(.horizontal, viewModel.settingsSectionPaddingHorizontal)
+            .padding(.vertical, viewModel.settingsSectionPaddingVertical)
+            .background(RoundedRectangle(cornerRadius: Style.sectionCornerRadius).fill(Color.white.opacity(Style.sectionBackgroundOpacity)))
             
             // Bars section (opens separate window to avoid cramped inline editor)
-            VStack(spacing: 4) {
+            VStack(spacing: viewModel.settingsSectionSpacing) {
                 HStack {
                     Text("BARS")
-                        .font(.system(size: 8, weight: .bold, design: .rounded))
-                        .foregroundColor(.white.opacity(0.3))
-                        .tracking(1)
+                        .font(.system(size: Style.sectionTitleFontSize, weight: .bold, design: .rounded))
+                        .foregroundColor(.white.opacity(Style.sectionTitleOpacity))
+                        .tracking(Style.sectionTitleTracking)
                     Spacer()
                 }
-                HStack(spacing: 8) {
+                HStack(spacing: viewModel.settingsBarsRowSpacing) {
                     Text("\(viewModel.bars.count) bars")
-                        .font(.system(size: 10, weight: .medium, design: .rounded))
-                        .foregroundColor(.white.opacity(0.6))
+                        .font(.system(size: Style.barsCountFontSize, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(Style.barsCountOpacity))
                     Spacer()
                     Button(action: {
                         BarConfigWindowController.shared.show()
                     }) {
-                        HStack(spacing: 4) {
+                        HStack(spacing: viewModel.settingsButtonContentSpacing) {
                             Image(systemName: "slider.horizontal.3")
-                                .font(.system(size: 10))
+                                .font(.system(size: Style.configureButtonFontSize))
                             Text("Configure")
-                                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                .font(.system(size: Style.configureButtonFontSize, weight: .semibold, design: .rounded))
                         }
-                        .foregroundColor(.cyan.opacity(0.85))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.06)))
+                        .foregroundColor(.cyan.opacity(Style.configureButtonOpacity))
+                        .padding(.horizontal, Style.configureButtonPaddingHorizontal)
+                        .padding(.vertical, Style.configureButtonPaddingVertical)
+                        .background(RoundedRectangle(cornerRadius: Style.configureButtonCornerRadius).fill(Color.white.opacity(Style.configureButtonBackgroundOpacity)))
                     }
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.03)))
+            .padding(.horizontal, viewModel.settingsSectionPaddingHorizontal)
+            .padding(.vertical, viewModel.settingsSectionPaddingVertical)
+            .background(RoundedRectangle(cornerRadius: Style.sectionCornerRadius).fill(Color.white.opacity(Style.sectionBackgroundOpacity)))
             
             // Action buttons
-            HStack(spacing: 8) {
+            HStack(spacing: viewModel.settingsActionSpacing) {
                 Spacer()
                 
                 Button("Cancel") {
                     viewModel.transitionTo(.expanded)
                 }
-                .font(.system(size: 11, weight: .medium, design: .rounded))
-                .foregroundColor(.white.opacity(0.6))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(Capsule().fill(Color.white.opacity(0.08)))
+                .font(.system(size: Style.actionButtonFontSize, weight: .medium, design: .rounded))
+                .foregroundColor(.white.opacity(Style.actionButtonOpacity))
+                .padding(.horizontal, Style.actionButtonPaddingHorizontal)
+                .padding(.vertical, Style.actionButtonPaddingVertical)
+                .background(Capsule().fill(Color.white.opacity(Style.actionButtonBackgroundOpacity)))
                 .buttonStyle(.plain)
                 
                 Button(action: saveConfig) {
-                    HStack(spacing: 3) {
+                    HStack(spacing: viewModel.settingsToggleSpacing) {
                         if showSaved {
                             Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 11))
+                                .font(.system(size: Style.saveButtonFontSize))
                                 .foregroundColor(.green)
                         }
                         Text(showSaved ? "Saved!" : "Save")
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .font(.system(size: Style.saveButtonFontSize, weight: .bold, design: .rounded))
                     }
                     .foregroundColor(showSaved ? .green : .white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
+                    .padding(.horizontal, Style.saveButtonPaddingHorizontal)
+                    .padding(.vertical, Style.saveButtonPaddingVertical)
                     .background(
-                        Capsule().fill(showSaved ? Color.green.opacity(0.15) : Color.cyan.opacity(0.2))
+                        Capsule().fill(showSaved ? Color.green.opacity(Style.saveButtonGreenBackgroundOpacity) : Color.cyan.opacity(Style.saveButtonCyanBackgroundOpacity))
                     )
                     .overlay(
-                        Capsule().strokeBorder(showSaved ? Color.green.opacity(0.3) : Color.cyan.opacity(0.3), lineWidth: 0.5)
+                        Capsule().strokeBorder(showSaved ? Color.green.opacity(Style.saveButtonStrokeOpacity) : Color.cyan.opacity(Style.saveButtonStrokeOpacity), lineWidth: Style.saveButtonStrokeWidth)
                     )
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 12)
-        .padding(.bottom, 10)
+        .padding(.horizontal, viewModel.settingsPaddingHorizontal)
+        .padding(.top, viewModel.settingsPaddingTop)
+        .padding(.bottom, viewModel.settingsPaddingBottom)
         .onAppear {
             editableAnimation = viewModel.animationConfig
             editableBarLength = viewModel.barLength
@@ -186,21 +247,21 @@ struct SettingsView: View {
     
     @ViewBuilder
     private func settingsField(_ label: String, value: Binding<CGFloat>, placeholder: String, width: CGFloat) -> some View {
-        HStack(spacing: 3) {
+        HStack(spacing: viewModel.settingsFieldLabelSpacing) {
             Text(label)
-                .font(.system(size: 9, weight: .medium, design: .rounded))
-                .foregroundColor(.white.opacity(0.45))
+                .font(.system(size: Style.fieldLabelFontSize, weight: .medium, design: .rounded))
+                .foregroundColor(.white.opacity(Style.fieldLabelOpacity))
             TextField(placeholder, text: Binding(
                 get: { String(Int(value.wrappedValue)) },
                 set: { value.wrappedValue = CGFloat(Int($0) ?? Int(placeholder) ?? 0) }
             ))
                 .textFieldStyle(.plain)
-                .font(.system(size: 9, design: .monospaced))
-                .foregroundColor(.white.opacity(0.8))
-                .padding(.horizontal, 4)
-                .padding(.vertical, 2)
+                .font(.system(size: Style.fieldTextFontSize, design: .monospaced))
+                .foregroundColor(.white.opacity(Style.fieldTextOpacity))
+                .padding(.horizontal, Style.fieldPaddingHorizontal)
+                .padding(.vertical, Style.fieldPaddingVertical)
                 .frame(width: width)
-                .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
+                .background(RoundedRectangle(cornerRadius: Style.fieldCornerRadius).fill(Color.white.opacity(Style.toggleBackgroundOpacity)))
                 .multilineTextAlignment(.center)
         }
     }
@@ -219,12 +280,12 @@ struct SettingsView: View {
         ConfigManager.shared.save(newConfig)
         viewModel.reloadConfig()
         
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+        withAnimation(.spring(response: Style.saveAnimationResponse, dampingFraction: Style.saveAnimationDamping)) {
             showSaved = true
         }
         
         // Reset "Saved!" indicator after 1.5s but stay in settings
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + Style.saveResetDelay) {
             withAnimation {
                 showSaved = false
             }

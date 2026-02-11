@@ -13,14 +13,19 @@ enum IslandState: Equatable {
 // MARK: - ViewModel
 
 class DynamicIslandViewModel: ObservableObject {
+    static let defaultBarLength: CGFloat = 200
+    static let defaultBarLengthExpanded: CGFloat = 300
+    static let defaultNameSize: CGFloat = 10
+    static let defaultTimeTextSize: CGFloat = 14
+
     @Published var state: IslandState = .idle
     @Published var barProgresses: [String: Double] = [:]
     @Published var bars: [BarConfig] = []
     @Published var animationConfig: AnimationConfig = .defaultAnimation
-    @Published var barLength: CGFloat = 200
-    @Published var barLengthExpanded: CGFloat = 300
-    @Published var nameSize: CGFloat = 10
-    @Published var timeTextSize: CGFloat = 14
+    @Published var barLength: CGFloat = DynamicIslandViewModel.defaultBarLength
+    @Published var barLengthExpanded: CGFloat = DynamicIslandViewModel.defaultBarLengthExpanded
+    @Published var nameSize: CGFloat = DynamicIslandViewModel.defaultNameSize
+    @Published var timeTextSize: CGFloat = DynamicIslandViewModel.defaultTimeTextSize
     @Published var timeFormat: String = "24h"
     @Published var timeShowSeconds: Bool = true
     @Published var currentTimeString: String = ""
@@ -51,10 +56,59 @@ class DynamicIslandViewModel: ObservableObject {
         bars.filter { $0.showInExpanded }
     }
 
-    var idleBarGap: CGFloat { 3 }
+    var idleBarGap: CGFloat { 2 }
     var idlePaddingTop: CGFloat { 2 }
     var idlePaddingBottom: CGFloat { 2 }
     var idlePaddingHorizontal: CGFloat { 16 }
+
+    var hoveredContentSpacing: CGFloat { 4 }
+    var hoveredPaddingTop: CGFloat { 16 }
+    var hoveredPaddingBottom: CGFloat { 14 }
+    var hoveredPaddingHorizontal: CGFloat { 20 }
+
+    var expandedContentSpacing: CGFloat { 6 }
+    var expandedPaddingTop: CGFloat { 14 }
+    var expandedPaddingBottom: CGFloat { 12 }
+    var expandedPaddingHorizontal: CGFloat { 20 }
+    var expandedButtonRowHeight: CGFloat { 36 }
+    var expandedButtonSpacing: CGFloat { 12 }
+
+    var settingsContentSpacing: CGFloat { 6 }
+    var settingsSectionSpacing: CGFloat { 4 }
+    var settingsPaddingTop: CGFloat { 12 }
+    var settingsPaddingBottom: CGFloat { 10 }
+    var settingsPaddingHorizontal: CGFloat { 16 }
+    var settingsSectionPaddingHorizontal: CGFloat { 8 }
+    var settingsSectionPaddingVertical: CGFloat { 5 }
+    var settingsActionSpacing: CGFloat { 8 }
+    var settingsFieldRowSpacing: CGFloat { 10 }
+    var settingsFieldLabelSpacing: CGFloat { 3 }
+    var settingsToggleSpacing: CGFloat { 3 }
+    var settingsBarsRowSpacing: CGFloat { 8 }
+    var settingsButtonContentSpacing: CGFloat { 4 }
+    var settingsWidthPadding: CGFloat { 40 }
+    var settingsMinWidth: CGFloat { 340 }
+    var settingsHeight: CGFloat { 200 }
+
+    var barLabelHeightPadding: CGFloat { 4 }
+    var barLabelToBarSpacing: CGFloat { 3 }
+    var barThicknessFallback: CGFloat { 4 }
+    var idleMinWidth: CGFloat { 100 }
+    var idleMinHeight: CGFloat { 30 }
+    var hoveredMinWidth: CGFloat { 140 }
+    var hoveredMinHeight: CGFloat { 48 }
+    var expandedMinWidth: CGFloat { 200 }
+    var expandedMinHeight: CGFloat { 80 }
+
+    var barCountMinimum: Int { 1 }
+    var barGapMinimum: Int { 0 }
+    var progressUnsetValue: Double { -1 }
+    var progressZeroValue: Double { 0 }
+    var segmentedDefaultSegments: Int { 20 }
+    var unsegmentedBucketCount: Int { 100 }
+    var notificationWrapThreshold: Double { 0.5 }
+    var progressFullValue: Double { 1.0 }
+    var notificationAutoDismissSeconds: Double { 3 }
     
     init() {
         tickManager.onTick = { [weak self] date, changed in
@@ -129,48 +183,42 @@ class DynamicIslandViewModel: ObservableObject {
     
     var idleSize: CGSize {
         let visibleBars = idleBars
-        let barCount = max(visibleBars.count, 1)
+        let barCount = max(visibleBars.count, barCountMinimum)
         let totalThickness = visibleBars.reduce(CGFloat(0)) { $0 + $1.thickness }
-        let gaps = CGFloat(max(barCount - 1, 0)) * idleBarGap
+        let gaps = CGFloat(max(barCount - 1, barGapMinimum)) * idleBarGap
         let height: CGFloat = idlePaddingTop + totalThickness + gaps + idlePaddingBottom
         // Idle width = barLength + horizontal padding (2 * 16)
         let width: CGFloat = barLength + (idlePaddingHorizontal * 2)
-        return CGSize(width: max(width, 100), height: max(height, 30))
+        return CGSize(width: max(width, idleMinWidth), height: max(height, idleMinHeight))
     }
     
     var hoveredSize: CGSize {
         let visibleBars = expandedBars
-        let barCount = max(visibleBars.count, 1)
-        let labelHeight: CGFloat = nameSize + 4  // label line height
-        let barRowHeight: CGFloat = labelHeight + 3 + max(visibleBars.map({ $0.thickness }).max() ?? 4, 4)
-        let barHeight: CGFloat = CGFloat(barCount) * barRowHeight + CGFloat(barCount - 1) * 4
-        let timeHeight: CGFloat = timeTextSize + 6  // time text + spacing
-        let height: CGFloat = 16 + timeHeight + barHeight + 16
-        let width: CGFloat = barLengthExpanded + 40
-        return CGSize(width: max(width, 140), height: max(height, 48))
+        let barCount = max(visibleBars.count, barCountMinimum)
+        let labelHeight: CGFloat = nameSize + barLabelHeightPadding  // label line height
+        let barRowHeight: CGFloat = labelHeight + barLabelToBarSpacing + max(visibleBars.map({ $0.thickness }).max() ?? barThicknessFallback, barThicknessFallback)
+        let barHeight: CGFloat = CGFloat(barCount) * barRowHeight + CGFloat(barCount - 1) * hoveredContentSpacing
+        let timeHeight: CGFloat = timeTextSize + hoveredContentSpacing  // time text + spacing
+        let height: CGFloat = hoveredPaddingTop + timeHeight + barHeight + hoveredPaddingBottom
+        let width: CGFloat = barLengthExpanded + (hoveredPaddingHorizontal * 2)
+        return CGSize(width: max(width, hoveredMinWidth), height: max(height, hoveredMinHeight))
     }
     
     var expandedSize: CGSize {
         let visibleBars = expandedBars
-        let barCount = max(visibleBars.count, 1)
-        let labelHeight: CGFloat = nameSize + 4
-        let barRowSpacing: CGFloat = 6
-        let barRowHeight: CGFloat = labelHeight + 3 + max(visibleBars.map({ $0.thickness }).max() ?? 4, 4)
-        let barHeight: CGFloat = CGFloat(barCount) * barRowHeight + CGFloat(barCount - 1) * barRowSpacing
-        let timeHeight: CGFloat = timeTextSize + 8  // time text + spacing below
-        let expandedPaddingTop: CGFloat = 14
-        let expandedPaddingBottom: CGFloat = 12
-        let expandedPaddingHorizontal: CGFloat = 20
-        let expandedButtonRowHeight: CGFloat = 36
-        let expandedButtonRowSpacing: CGFloat = 12
-        let height: CGFloat = expandedPaddingTop + timeHeight + barHeight + expandedPaddingBottom + expandedButtonRowHeight + expandedButtonRowSpacing
+        let barCount = max(visibleBars.count, barCountMinimum)
+        let labelHeight: CGFloat = nameSize + barLabelHeightPadding
+        let barRowHeight: CGFloat = labelHeight + barLabelToBarSpacing + max(visibleBars.map({ $0.thickness }).max() ?? barThicknessFallback, barThicknessFallback)
+        let barHeight: CGFloat = CGFloat(barCount) * barRowHeight + CGFloat(barCount - 1) * expandedContentSpacing
+        let timeHeight: CGFloat = timeTextSize + expandedContentSpacing  // time text + spacing below
+        let height: CGFloat = expandedPaddingTop + timeHeight + barHeight + expandedContentSpacing + expandedButtonRowHeight + expandedPaddingBottom
         let width: CGFloat = barLengthExpanded + (expandedPaddingHorizontal * 2)
-        return CGSize(width: max(width, 200), height: max(height, 80))
+        return CGSize(width: max(width, expandedMinWidth), height: max(height, expandedMinHeight))
     }
     
     var settingsSize: CGSize {
-        let width: CGFloat = max(barLengthExpanded + 40, 340)
-        return CGSize(width: width, height: 190)
+        let width: CGFloat = max(barLengthExpanded + settingsWidthPadding, settingsMinWidth)
+        return CGSize(width: width, height: settingsHeight)
     }
     
     // MARK: - Tick Manager
@@ -208,10 +256,10 @@ class DynamicIslandViewModel: ObservableObject {
             guard changed.contains(ruleGranularity) else { continue }
             
             let newValue = rule.progress(at: now)
-            let oldValue = barProgresses[name] ?? -1
+            let oldValue = barProgresses[name] ?? progressUnsetValue
             let isSegmented = barConfigMap[name]?.segmented ?? false
-            let segments = barConfigMap[name]?.segments ?? 20
-            let bucketCount = isSegmented ? segments : 100
+            let segments = barConfigMap[name]?.segments ?? segmentedDefaultSegments
+            let bucketCount = isSegmented ? segments : unsegmentedBucketCount
             if Int(newValue * Double(bucketCount)) != Int(oldValue * Double(bucketCount)) {
                 updates[name] = newValue
             }
@@ -239,11 +287,11 @@ class DynamicIslandViewModel: ObservableObject {
             // Check for notification: any bar with notify=true just completed a cycle.
             var shouldNotify = false
             for (name, value) in updates {
-                let oldValue = self.barProgresses[name] ?? -1
+                let oldValue = self.barProgresses[name] ?? progressUnsetValue
                 let bar = self.barConfigMap[name]
-                if bar?.notify == true && oldValue >= 0 {
-                    let cycleCompleted = (oldValue - value) > 0.5  // wrap-around detected
-                    let reachedFull = value >= 1.0 && oldValue < 1.0
+                if bar?.notify == true && oldValue >= progressZeroValue {
+                    let cycleCompleted = (oldValue - value) > notificationWrapThreshold  // wrap-around detected
+                    let reachedFull = value >= progressFullValue && oldValue < progressFullValue
                     if cycleCompleted || reachedFull {
                         shouldNotify = true
                     }
@@ -258,7 +306,7 @@ class DynamicIslandViewModel: ObservableObject {
                 self.isNotifying = true
                 self.transitionTo(.hovered)
                 
-                // Auto-dismiss after 3 seconds
+                // Auto-dismiss after a short delay
                 let work = DispatchWorkItem { [weak self] in
                     guard let self = self else { return }
                     self.isNotifying = false
@@ -267,7 +315,7 @@ class DynamicIslandViewModel: ObservableObject {
                     }
                 }
                 self.notificationDismissWork = work
-                DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: work)
+                DispatchQueue.main.asyncAfter(deadline: .now() + notificationAutoDismissSeconds, execute: work)
             }
         }
     }
@@ -326,6 +374,13 @@ struct DynamicIslandShape: Shape {
     var bottomRadius: CGFloat
     /// Extra width on each side at the top (the "flare")
     var topFlare: CGFloat
+
+    private enum ShapeConstants {
+        static let neckHeightRatio: CGFloat = 0.25
+        static let neckHeightMax: CGFloat = 20
+        static let taperControlOuter: CGFloat = 0.3
+        static let taperControlInner: CGFloat = 0.5
+    }
     
     var animatableData: AnimatablePair<CGFloat, CGFloat> {
         get { AnimatablePair(bottomRadius, topFlare) }
@@ -343,7 +398,7 @@ struct DynamicIslandShape: Shape {
         let flare = topFlare
         
         // The "neck" height — how far down the taper extends
-        let neckHeight: CGFloat = min(h * 0.25, 20)
+        let neckHeight: CGFloat = min(h * ShapeConstants.neckHeightRatio, ShapeConstants.neckHeightMax)
         
         // Top-left corner (extended outward by flare)
         path.move(to: CGPoint(x: -flare, y: 0))
@@ -354,8 +409,8 @@ struct DynamicIslandShape: Shape {
         // Right taper: from (w + flare, 0) curving inward to (w, neckHeight)
         path.addCurve(
             to: CGPoint(x: w, y: neckHeight),
-            control1: CGPoint(x: w + flare, y: neckHeight * 0.3),
-            control2: CGPoint(x: w, y: neckHeight * 0.5)
+            control1: CGPoint(x: w + flare, y: neckHeight * ShapeConstants.taperControlOuter),
+            control2: CGPoint(x: w, y: neckHeight * ShapeConstants.taperControlInner)
         )
         
         // Right side straight down to bottom-right corner
@@ -388,8 +443,8 @@ struct DynamicIslandShape: Shape {
         // Left taper: from (0, neckHeight) curving outward to (-flare, 0)
         path.addCurve(
             to: CGPoint(x: -flare, y: 0),
-            control1: CGPoint(x: 0, y: neckHeight * 0.5),
-            control2: CGPoint(x: -flare, y: neckHeight * 0.3)
+            control1: CGPoint(x: 0, y: neckHeight * ShapeConstants.taperControlInner),
+            control2: CGPoint(x: -flare, y: neckHeight * ShapeConstants.taperControlOuter)
         )
         
         path.closeSubpath()
@@ -401,7 +456,50 @@ struct DynamicIslandShape: Shape {
 
 struct DynamicIslandView: View {
     @ObservedObject var viewModel: DynamicIslandViewModel
-    @State private var glowOpacity: Double = 0.3
+
+    private enum Style {
+        static let glowStartOpacity: Double = 0.3
+        static let glowEndOpacity: Double = 0.8
+        static let glowDuration: Double = 2.5
+        static let idleCornerRadius: CGFloat = 16
+        static let hoveredCornerRadius: CGFloat = 20
+        static let expandedCornerRadius: CGFloat = 22
+        static let idleTopFlare: CGFloat = 8
+        static let hoveredTopFlare: CGFloat = 12
+        static let expandedTopFlare: CGFloat = 16
+        static let backgroundTopWhite: CGFloat = 0.14
+        static let backgroundBottomWhite: CGFloat = 0.06
+        static let borderIdleLineWidth: CGFloat = 0.5
+        static let borderActiveLineWidth: CGFloat = 1
+        static let shadowIdleRadius: CGFloat = 6
+        static let shadowActiveRadius: CGFloat = 14
+        static let shadowYOffset: CGFloat = 5
+        static let transitionHoveredScale: CGFloat = 0.9
+        static let transitionExpandedScale: CGFloat = 0.95
+        static let timeTextOpacity: Double = 0.85
+        static let buttonContentSpacing: CGFloat = 4
+        static let buttonFontSize: CGFloat = 10
+        static let buttonTextOpacity: Double = 0.7
+        static let buttonHorizontalPadding: CGFloat = 10
+        static let buttonVerticalPadding: CGFloat = 5
+        static let buttonBackgroundOpacity: Double = 0.1
+        static let buttonBorderOpacity: Double = 0.15
+        static let quitTextOpacity: Double = 0.7
+        static let quitBackgroundOpacity: Double = 0.08
+        static let quitBorderOpacity: Double = 0.2
+        static let idleBorderBaseOpacity: Double = 0.06
+        static let idleBorderGlowScale: Double = 0.04
+        static let idleBorderBottomOpacity: Double = 0.04
+        static let hoveredBorderCyanOpacity: Double = 0.4
+        static let hoveredBorderBlueOpacity: Double = 0.3
+        static let expandedBorderPurpleOpacity: Double = 0.3
+        static let expandedBorderBlueOpacity: Double = 0.2
+        static let idleShadowOpacity: Double = 0.4
+        static let hoveredShadowOpacity: Double = 0.2
+        static let expandedShadowOpacity: Double = 0.15
+    }
+
+    @State private var glowOpacity: Double = Style.glowStartOpacity
     
     private var pillWidth: CGFloat {
         viewModel.currentPillSize.width
@@ -413,18 +511,18 @@ struct DynamicIslandView: View {
     
     private var bottomRadius: CGFloat {
         switch viewModel.state {
-        case .idle: return 16
-        case .hovered: return 20
-        case .expanded, .settings: return 22
+        case .idle: return Style.idleCornerRadius
+        case .hovered: return Style.hoveredCornerRadius
+        case .expanded, .settings: return Style.expandedCornerRadius
         }
     }
     
     /// How much the top flares outward on each side
     private var topFlare: CGFloat {
         switch viewModel.state {
-        case .idle: return 8
-        case .hovered: return 12
-        case .expanded, .settings: return 16
+        case .idle: return Style.idleTopFlare
+        case .hovered: return Style.hoveredTopFlare
+        case .expanded, .settings: return Style.expandedTopFlare
         }
     }
     
@@ -439,8 +537,8 @@ struct DynamicIslandView: View {
                             .fill(
                                 LinearGradient(
                                     colors: [
-                                        Color(white: 0.14),
-                                        Color(white: 0.06)
+                                        Color(white: Style.backgroundTopWhite),
+                                        Color(white: Style.backgroundBottomWhite)
                                     ],
                                     startPoint: .top,
                                     endPoint: .bottom
@@ -449,9 +547,9 @@ struct DynamicIslandView: View {
                     )
                     .overlay(
                         DynamicIslandShape(bottomRadius: bottomRadius, topFlare: topFlare)
-                            .stroke(borderGradient, lineWidth: viewModel.state == .idle ? 0.5 : 1)
+                            .stroke(borderGradient, lineWidth: viewModel.state == .idle ? Style.borderIdleLineWidth : Style.borderActiveLineWidth)
                     )
-                    .shadow(color: shadowColor, radius: viewModel.state == .idle ? 6 : 14, y: 5)
+                    .shadow(color: shadowColor, radius: viewModel.state == .idle ? Style.shadowIdleRadius : Style.shadowActiveRadius, y: Style.shadowYOffset)
                 
                 // Content
                 contentForState
@@ -484,20 +582,20 @@ struct DynamicIslandView: View {
                 .transition(.opacity)
         case .hovered:
             hoveredContent
-                .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                .transition(.opacity.combined(with: .scale(scale: Style.transitionHoveredScale)))
         case .expanded:
             expandedContent
-                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                .transition(.opacity.combined(with: .scale(scale: Style.transitionExpandedScale)))
         case .settings:
             SettingsView(viewModel: viewModel)
-                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                .transition(.opacity.combined(with: .scale(scale: Style.transitionExpandedScale)))
         }
     }
     
     // MARK: - Idle Content
     
     private var idleContent: some View {
-        VStack(spacing: 3) {
+        VStack(spacing: viewModel.idleBarGap) {
             ForEach(viewModel.bars.filter { $0.showInIdle }) { bar in
                 TimeBarView(
                     barConfig: bar,
@@ -518,11 +616,11 @@ struct DynamicIslandView: View {
     // MARK: - Hovered Content
     
     private var hoveredContent: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: viewModel.hoveredContentSpacing) {
             // Current time display
             Text(viewModel.currentTimeString)
                 .font(.system(size: viewModel.timeTextSize, weight: .bold, design: .monospaced))
-                .foregroundColor(.white.opacity(0.85))
+                .foregroundColor(.white.opacity(Style.timeTextOpacity))
                 .frame(maxWidth: .infinity, alignment: .center)
             
             ForEach(viewModel.bars.filter { $0.showInExpanded }) { bar in
@@ -537,19 +635,19 @@ struct DynamicIslandView: View {
                 )
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 16)
-        .padding(.bottom, 14)
+        .padding(.horizontal, viewModel.hoveredPaddingHorizontal)
+        .padding(.top, viewModel.hoveredPaddingTop)
+        .padding(.bottom, viewModel.hoveredPaddingBottom)
     }
     
     // MARK: - Expanded Content
     
     private var expandedContent: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: viewModel.expandedContentSpacing) {
             // Current time display
             Text(viewModel.currentTimeString)
                 .font(.system(size: viewModel.timeTextSize, weight: .bold, design: .monospaced))
-                .foregroundColor(.white.opacity(0.85))
+                .foregroundColor(.white.opacity(Style.timeTextOpacity))
                 .frame(maxWidth: .infinity, alignment: .center)
             
             ForEach(viewModel.bars.filter { $0.showInExpanded }) { bar in
@@ -564,23 +662,23 @@ struct DynamicIslandView: View {
                 )
             }
             
-            HStack(spacing: 12) {
+            HStack(spacing: viewModel.expandedButtonSpacing) {
                 Spacer()
                 
                 Button(action: {
                     viewModel.transitionTo(.settings)
                 }) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: Style.buttonContentSpacing) {
                         Image(systemName: "gearshape.fill")
-                            .font(.system(size: 10))
+                            .font(.system(size: Style.buttonFontSize))
                         Text("Settings")
-                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .font(.system(size: Style.buttonFontSize, weight: .semibold, design: .rounded))
                     }
-                    .foregroundColor(.white.opacity(0.7))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Capsule().fill(Color.white.opacity(0.1)))
-                    .overlay(Capsule().strokeBorder(Color.white.opacity(0.15), lineWidth: 0.5))
+                    .foregroundColor(.white.opacity(Style.buttonTextOpacity))
+                    .padding(.horizontal, Style.buttonHorizontalPadding)
+                    .padding(.vertical, Style.buttonVerticalPadding)
+                    .background(Capsule().fill(Color.white.opacity(Style.buttonBackgroundOpacity)))
+                    .overlay(Capsule().strokeBorder(Color.white.opacity(Style.buttonBorderOpacity), lineWidth: Style.borderIdleLineWidth))
                 }
                 .buttonStyle(.plain)
                 
@@ -588,43 +686,43 @@ struct DynamicIslandView: View {
                     ConfigManager.shared.load()
                     viewModel.reloadConfig()
                 }) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: Style.buttonContentSpacing) {
                         Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 10))
+                            .font(.system(size: Style.buttonFontSize))
                         Text("Reload")
-                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .font(.system(size: Style.buttonFontSize, weight: .semibold, design: .rounded))
                     }
-                    .foregroundColor(.white.opacity(0.7))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Capsule().fill(Color.white.opacity(0.1)))
-                    .overlay(Capsule().strokeBorder(Color.white.opacity(0.15), lineWidth: 0.5))
+                    .foregroundColor(.white.opacity(Style.buttonTextOpacity))
+                    .padding(.horizontal, Style.buttonHorizontalPadding)
+                    .padding(.vertical, Style.buttonVerticalPadding)
+                    .background(Capsule().fill(Color.white.opacity(Style.buttonBackgroundOpacity)))
+                    .overlay(Capsule().strokeBorder(Color.white.opacity(Style.buttonBorderOpacity), lineWidth: Style.borderIdleLineWidth))
                 }
                 .buttonStyle(.plain)
                 
                 Button(action: {
                     NSApp.terminate(nil)
                 }) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: Style.buttonContentSpacing) {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 10))
+                            .font(.system(size: Style.buttonFontSize))
                         Text("Quit")
-                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .font(.system(size: Style.buttonFontSize, weight: .semibold, design: .rounded))
                     }
-                    .foregroundColor(.red.opacity(0.7))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Capsule().fill(Color.red.opacity(0.08)))
-                    .overlay(Capsule().strokeBorder(Color.red.opacity(0.2), lineWidth: 0.5))
+                    .foregroundColor(.red.opacity(Style.quitTextOpacity))
+                    .padding(.horizontal, Style.buttonHorizontalPadding)
+                    .padding(.vertical, Style.buttonVerticalPadding)
+                    .background(Capsule().fill(Color.red.opacity(Style.quitBackgroundOpacity)))
+                    .overlay(Capsule().strokeBorder(Color.red.opacity(Style.quitBorderOpacity), lineWidth: Style.borderIdleLineWidth))
                 }
                 .buttonStyle(.plain)
                 
                 Spacer()
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 14)
-        .padding(.bottom, 12)
+        .padding(.horizontal, viewModel.expandedPaddingHorizontal)
+        .padding(.top, viewModel.expandedPaddingTop)
+        .padding(.bottom, viewModel.expandedPaddingBottom)
     }
     
     // MARK: - Styling
@@ -633,19 +731,19 @@ struct DynamicIslandView: View {
         switch viewModel.state {
         case .idle:
             return LinearGradient(
-                colors: [.clear, .white.opacity(0.06 + glowOpacity * 0.04), .white.opacity(0.04)],
+                colors: [.clear, .white.opacity(Style.idleBorderBaseOpacity + glowOpacity * Style.idleBorderGlowScale), .white.opacity(Style.idleBorderBottomOpacity)],
                 startPoint: .top,
                 endPoint: .bottom
             )
         case .hovered:
             return LinearGradient(
-                colors: [.clear, .cyan.opacity(0.4), .blue.opacity(0.3)],
+                colors: [.clear, .cyan.opacity(Style.hoveredBorderCyanOpacity), .blue.opacity(Style.hoveredBorderBlueOpacity)],
                 startPoint: .top,
                 endPoint: .bottom
             )
         case .expanded, .settings:
             return LinearGradient(
-                colors: [.clear, .purple.opacity(0.3), .blue.opacity(0.2)],
+                colors: [.clear, .purple.opacity(Style.expandedBorderPurpleOpacity), .blue.opacity(Style.expandedBorderBlueOpacity)],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -654,17 +752,17 @@ struct DynamicIslandView: View {
     
     private var shadowColor: Color {
         switch viewModel.state {
-        case .idle: return .black.opacity(0.4)
-        case .hovered: return .cyan.opacity(0.2)
-        case .expanded, .settings: return .purple.opacity(0.15)
+        case .idle: return .black.opacity(Style.idleShadowOpacity)
+        case .hovered: return .cyan.opacity(Style.hoveredShadowOpacity)
+        case .expanded, .settings: return .purple.opacity(Style.expandedShadowOpacity)
         }
     }
     
     // MARK: - Animations
     
     private func startIdleGlow() {
-        withAnimation(.easeInOut(duration: 2.5).repeatForever(autoreverses: true)) {
-            glowOpacity = 0.8
+        withAnimation(.easeInOut(duration: Style.glowDuration).repeatForever(autoreverses: true)) {
+            glowOpacity = Style.glowEndOpacity
         }
     }
 }
