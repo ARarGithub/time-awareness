@@ -60,8 +60,8 @@ class DynamicIslandViewModel: ObservableObject {
     }
 
     var idleBarGap: CGFloat { 2 }
-    var idlePaddingTop: CGFloat { 2 }
-    var idlePaddingBottom: CGFloat { 2 }
+    var idlePaddingTop: CGFloat { 0 }
+    var idlePaddingBottom: CGFloat { 5 }
     var idlePaddingHorizontal: CGFloat { 16 }
 
     var hoveredContentSpacing: CGFloat { 4 }
