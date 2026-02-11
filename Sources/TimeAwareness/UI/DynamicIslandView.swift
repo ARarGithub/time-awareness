@@ -1,5 +1,7 @@
 import SwiftUI
 import Combine
+import AppKit
+import UserNotifications
 
 // MARK: - State
 
@@ -41,6 +43,7 @@ class DynamicIslandViewModel: ObservableObject {
     private var notificationDismissWork: DispatchWorkItem?
     /// True while an auto-notification hover is active (prevents mouse-leave from dismissing)
     private(set) var isNotifying: Bool = false
+    private let speechSynthesizer = NSSpeechSynthesizer()
     private let timeDisplayRegistrationName = "__time_display__"
     private lazy var timeFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -122,7 +125,15 @@ class DynamicIslandViewModel: ObservableObject {
     }
     
     func reloadConfig() {
-        let config = ConfigManager.shared.config
+        var config = ConfigManager.shared.config
+        let invalidNotifyBars = config.bars.filter { $0.notify && !$0.showInIdle }.map { $0.name }
+        if !invalidNotifyBars.isEmpty {
+            for index in config.bars.indices where config.bars[index].notify && !config.bars[index].showInIdle {
+                config.bars[index].notify = false
+            }
+            ConfigManager.shared.save(config)
+            notifyInvalidNotifyBars(invalidNotifyBars)
+        }
         bars = config.bars
         animationConfig = config.animation
         barLength = config.barLength
@@ -301,6 +312,7 @@ class DynamicIslandViewModel: ObservableObject {
             }
             
             if shouldNotify && self.state == .idle {
+                self.runBuiltInAlert(at: now)
                 // Cancel any pending dismiss
                 self.notificationDismissWork?.cancel()
                 
@@ -350,6 +362,38 @@ class DynamicIslandViewModel: ObservableObject {
             return .hour
         case .days, .week, .month, .year:
             return .day
+        }
+    }
+
+    private func runBuiltInAlert(at now: Date) {
+        let timeString = timeFormatter.string(from: now)
+        let content = UNMutableNotificationContent()
+        content.title = "Time Alert"
+        content.body = "Current time is \(timeString)."
+        content.sound = .default
+        let request = UNNotificationRequest(
+            identifier: UUID().uuidString,
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
+
+        if let sound = NSSound(named: NSSound.Name("Blow")) {
+            sound.play()
+        }
+
+        speechSynthesizer.startSpeaking(content.body)
+    }
+
+    private func notifyInvalidNotifyBars(_ names: [String]) {
+        let list = names.joined(separator: ", ")
+        DispatchQueue.main.async {
+            let alert = NSAlert()
+            alert.messageText = "Notify Disabled"
+            alert.informativeText = "Notify was disabled for bars not visible in idle: \(list)."
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
         }
     }
 }

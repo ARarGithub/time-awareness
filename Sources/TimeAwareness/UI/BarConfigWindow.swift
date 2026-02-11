@@ -67,6 +67,7 @@ struct BarConfigView: View {
     @State var bars: [BarConfig]
     let onSave: ([BarConfig]) -> Void
     let onCancel: () -> Void
+    @State private var draggingBarName: String?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -139,6 +140,8 @@ struct BarConfigView: View {
     
     private var barHeaderRow: some View {
         HStack(spacing: 6) {
+            Text("")
+                .frame(width: 14, alignment: .center)
             Text("Name")
                 .frame(width: 70, alignment: .leading)
             Text("Rule")
@@ -164,6 +167,7 @@ struct BarConfigView: View {
         }
         .font(.system(size: 11, weight: .medium, design: .rounded))
         .foregroundColor(.secondary)
+        .padding(.horizontal, 8)
     }
     
     // MARK: - Bar Editor Row
@@ -171,6 +175,16 @@ struct BarConfigView: View {
     @ViewBuilder
     private func barEditorRow(index: Int) -> some View {
         HStack(spacing: 6) {
+            // Drag handle
+            Image(systemName: "line.3.horizontal")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.secondary)
+                .frame(width: 14, height: 14)
+                .contentShape(Rectangle())
+                .onDrag {
+                    draggingBarName = bars[index].name
+                    return NSItemProvider(object: bars[index].name as NSString)
+                }
             // Name
             TextField("name", text: $bars[index].name)
                 .textFieldStyle(.roundedBorder)
@@ -232,6 +246,7 @@ struct BarConfigView: View {
             
             // Notify toggle
             Button(action: {
+                guard bars[index].showInIdle else { return }
                 bars[index].notify.toggle()
             }) {
                 Image(systemName: bars[index].notify ? "bell.fill" : "bell.slash")
@@ -240,10 +255,15 @@ struct BarConfigView: View {
             }
             .buttonStyle(.plain)
             .frame(width: 24)
+            .disabled(!bars[index].showInIdle)
+            .help("Notify requires the bar to be visible in idle.")
             
             // Show in Idle toggle
             Button(action: {
                 bars[index].showInIdle.toggle()
+                if !bars[index].showInIdle {
+                    bars[index].notify = false
+                }
             }) {
                 Image(systemName: bars[index].showInIdle ? "eye.fill" : "eye.slash")
                     .font(.system(size: 11))
@@ -286,6 +306,14 @@ struct BarConfigView: View {
             RoundedRectangle(cornerRadius: 6)
                 .fill(Color.primary.opacity(0.03))
         )
+        .onDrop(
+            of: [.text],
+            delegate: BarDropDelegate(
+                targetName: bars[index].name,
+                bars: $bars,
+                draggingName: $draggingBarName
+            )
+        )
     }
     
     // MARK: - Actions
@@ -303,5 +331,33 @@ struct BarConfigView: View {
             showInExpanded: Defaults.barShowInExpanded
         )
         bars.append(newBar)
+    }
+}
+
+private struct BarDropDelegate: DropDelegate {
+    let targetName: String
+    @Binding var bars: [BarConfig]
+    @Binding var draggingName: String?
+
+    func dropEntered(info: DropInfo) {
+        guard let draggingName = draggingName, draggingName != targetName else { return }
+        guard let fromIndex = bars.firstIndex(where: { $0.name == draggingName }),
+              let toIndex = bars.firstIndex(where: { $0.name == targetName }) else { return }
+
+        withAnimation {
+            bars.move(
+                fromOffsets: IndexSet(integer: fromIndex),
+                toOffset: toIndex > fromIndex ? toIndex + 1 : toIndex
+            )
+        }
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        draggingName = nil
+        return true
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
     }
 }

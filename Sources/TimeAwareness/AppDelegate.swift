@@ -1,5 +1,6 @@
 import Cocoa
 import SwiftUI
+import UserNotifications
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     
@@ -9,6 +10,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Ensure we're an agent app (no Dock icon)
         NSApp.setActivationPolicy(.accessory)
+
+        requestNotificationAuthorization()
         
         // Initialize config (creates default if needed)
         ConfigManager.shared.ensureDefaultConfig()
@@ -19,6 +22,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // Create menu bar status item
         setupStatusItem()
+    }
+
+    private func requestNotificationAuthorization() {
+        let center = UNUserNotificationCenter.current()
+        center.getNotificationSettings { settings in
+            guard settings.authorizationStatus == .notDetermined else { return }
+            center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        }
     }
     
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
