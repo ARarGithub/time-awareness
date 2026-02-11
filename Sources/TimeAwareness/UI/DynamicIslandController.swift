@@ -106,7 +106,7 @@ class DynamicIslandController: ObservableObject {
     }
     
     private func positionWindow() {
-        guard let window = window, let screen = NSScreen.main else { return }
+        guard let window = window, let screen = referenceScreen() else { return }
         let screenFrame = screen.frame
         let w = windowWidth
         let h = windowHeight
@@ -221,10 +221,20 @@ class DynamicIslandController: ObservableObject {
     }
     
     // MARK: - Hit Area Calculations
+
+    private func referenceScreen() -> NSScreen? {
+        if let window = window {
+            if let screen = window.screen {
+                return screen
+            }
+            return NSScreen.screens.first(where: { $0.frame.intersects(window.frame) })
+        }
+        return NSScreen.screens.first
+    }
     
     /// Returns the screen-space rect of the idle/hovered pill (including flare)
     private func currentPillScreenFrame() -> NSRect {
-        guard let screen = NSScreen.main else { return .zero }
+        guard let screen = referenceScreen() else { return .zero }
         let screenFrame = screen.frame
         
         let pillSize = viewModel.currentPillSize
@@ -243,7 +253,7 @@ class DynamicIslandController: ObservableObject {
     
     /// Returns the screen-space rect of the expanded/settings island
     private func currentExpandedScreenFrame() -> NSRect {
-        guard let screen = NSScreen.main else { return .zero }
+        guard let screen = referenceScreen() else { return .zero }
         let screenFrame = screen.frame
         
         let size: CGSize
