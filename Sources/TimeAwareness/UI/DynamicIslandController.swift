@@ -244,12 +244,13 @@ class DynamicIslandController: ObservableObject {
         
         // Add some padding around the pill for easier mouse interaction
         let paddingX: CGFloat = 0
-        let paddingY: CGFloat = 0
+        let paddingY: CGFloat = 8
         return NSRect(
             x: x - paddingX,
-            y: y - paddingY,
+            // y: y - paddingY,
+            y: y,
             width: pillSize.width + flare * 2 + paddingX * 2,
-            height: pillSize.height + paddingY * 2
+            height: pillSize.height + paddingY * 1
         )
     }
     
