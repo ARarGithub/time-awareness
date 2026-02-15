@@ -197,9 +197,17 @@ class DynamicIslandController: ObservableObject {
         // Get the pill's current frame in screen coordinates
         let pillFrame = currentPillScreenFrame()
         let isInPill = pillFrame.contains(mouseLocation)
+        let isInIdleExpandZone = idleExpandTriggerScreenFrame().contains(mouseLocation)
+
+        let trackedRegionContainsMouse: Bool = {
+            if viewModel.state == .idle {
+                return isInIdleExpandZone
+            }
+            return isInPill
+        }()
 
         if lastIsInPill == nil {
-            lastIsInPill = isInPill
+            lastIsInPill = trackedRegionContainsMouse
             if viewModel.state == .idle {
                 return
             }
@@ -207,7 +215,7 @@ class DynamicIslandController: ObservableObject {
         
         switch viewModel.state {
         case .idle:
-            if isInPill && lastIsInPill == false {
+            if isInIdleExpandZone && lastIsInPill == false {
                 window.ignoresMouseEvents = false
                 viewModel.transitionTo(.hovered)
             }
@@ -230,7 +238,7 @@ class DynamicIslandController: ObservableObject {
             }
         }
 
-        lastIsInPill = isInPill
+        lastIsInPill = trackedRegionContainsMouse
     }
     
     private func handleGlobalClick(_ event: NSEvent) {
@@ -292,6 +300,17 @@ class DynamicIslandController: ObservableObject {
             y: y,
             width: pillSize.width + flare * 2 + paddingX * 2,
             height: pillSize.height + paddingY * 1
+        )
+    }
+
+    /// In idle state, only entering the upper half of the pill triggers expansion.
+    private func idleExpandTriggerScreenFrame() -> NSRect {
+        let pillFrame = currentPillScreenFrame()
+        return NSRect(
+            x: pillFrame.minX,
+            y: pillFrame.midY,
+            width: pillFrame.width,
+            height: max(0, pillFrame.height / 2)
         )
     }
     
