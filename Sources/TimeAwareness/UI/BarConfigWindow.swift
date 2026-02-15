@@ -67,7 +67,7 @@ struct BarConfigView: View {
     @State var bars: [BarConfig]
     let onSave: ([BarConfig]) -> Void
     let onCancel: () -> Void
-    @State private var draggingBarName: String?
+    @State private var draggingBarIndex: Int?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -182,8 +182,8 @@ struct BarConfigView: View {
                 .frame(width: 14, height: 14)
                 .contentShape(Rectangle())
                 .onDrag {
-                    draggingBarName = bars[index].name
-                    return NSItemProvider(object: bars[index].name as NSString)
+                    draggingBarIndex = index
+                    return NSItemProvider(object: String(index) as NSString)
                 }
             // Name
             TextField("name", text: $bars[index].name)
@@ -309,9 +309,9 @@ struct BarConfigView: View {
         .onDrop(
             of: [.text],
             delegate: BarDropDelegate(
-                targetName: bars[index].name,
+                targetIndex: index,
                 bars: $bars,
-                draggingName: $draggingBarName
+                draggingIndex: $draggingBarIndex
             )
         )
     }
@@ -319,8 +319,9 @@ struct BarConfigView: View {
     // MARK: - Actions
     
     private func addBar() {
+        let existingNames = Set(bars.map { $0.name })
         let newBar = BarConfig(
-            name: "bar_\(bars.count)",
+            name: makeUniqueBarName(base: "bar_\(bars.count)", existingNames: existingNames),
             rule: Defaults.barRule,
             color: Defaults.barColor,
             thickness: Defaults.barThickness,
@@ -332,28 +333,41 @@ struct BarConfigView: View {
         )
         bars.append(newBar)
     }
+
+    private func makeUniqueBarName(base: String, existingNames: Set<String>) -> String {
+        if !existingNames.contains(base) {
+            return base
+        }
+
+        var suffix = 1
+        while existingNames.contains("\(base)_\(suffix)") {
+            suffix += 1
+        }
+        return "\(base)_\(suffix)"
+    }
 }
 
 private struct BarDropDelegate: DropDelegate {
-    let targetName: String
+    let targetIndex: Int
     @Binding var bars: [BarConfig]
-    @Binding var draggingName: String?
+    @Binding var draggingIndex: Int?
 
     func dropEntered(info: DropInfo) {
-        guard let draggingName = draggingName, draggingName != targetName else { return }
-        guard let fromIndex = bars.firstIndex(where: { $0.name == draggingName }),
-              let toIndex = bars.firstIndex(where: { $0.name == targetName }) else { return }
+        guard let fromIndex = draggingIndex else { return }
+        guard fromIndex != targetIndex else { return }
+        guard bars.indices.contains(fromIndex), bars.indices.contains(targetIndex) else { return }
 
         withAnimation {
             bars.move(
                 fromOffsets: IndexSet(integer: fromIndex),
-                toOffset: toIndex > fromIndex ? toIndex + 1 : toIndex
+                toOffset: targetIndex > fromIndex ? targetIndex + 1 : targetIndex
             )
         }
+        draggingIndex = targetIndex
     }
 
     func performDrop(info: DropInfo) -> Bool {
-        draggingName = nil
+        draggingIndex = nil
         return true
     }
 

@@ -60,6 +60,7 @@ struct TimeRule {
         
         // Parse the main duration
         guard let (dur, unit) = parsePart(String(first)) else { return nil }
+        guard dur > 0 else { return nil }
         
         // Parse optional offset
         var offsetSeconds: Double = 0
@@ -75,21 +76,28 @@ struct TimeRule {
     /// Parse a single value+unit like "60s", "60m", "16h"
     private static func parsePart(_ s: String) -> (Double, Unit)? {
         let str = s.lowercased().trimmingCharacters(in: .whitespaces)
+        func valid(_ value: Double) -> Bool {
+            value.isFinite && value > 0
+        }
         
         if str.hasSuffix("s") {
             if let val = Double(str.dropLast()) {
+                guard valid(val) else { return nil }
                 return (val, .seconds)
             }
         } else if str.hasSuffix("m") {
             if let val = Double(str.dropLast()) {
+                guard valid(val) else { return nil }
                 return (val * 60, .minutes)
             }
         } else if str.hasSuffix("h") {
             if let val = Double(str.dropLast()) {
+                guard valid(val) else { return nil }
                 return (val * 3600, .hours)
             }
         } else if str.hasSuffix("d") {
             if let val = Double(str.dropLast()) {
+                guard valid(val) else { return nil }
                 return (val, .days)
             }
         }
@@ -103,6 +111,7 @@ struct TimeRule {
         
         switch unit {
         case .seconds:
+            guard totalDuration > 0 else { return 0 }
             let second = calendar.component(.second, from: date)
             let nanosecond = calendar.component(.nanosecond, from: date)
             let currentSec = Double(second) + Double(nanosecond) / 1_000_000_000
@@ -110,6 +119,7 @@ struct TimeRule {
             return min(max(p, 0), 1)
             
         case .minutes:
+            guard totalDuration > 0 else { return 0 }
             let minute = calendar.component(.minute, from: date)
             let second = calendar.component(.second, from: date)
             let currentSec = Double(minute) * 60 + Double(second)
@@ -117,6 +127,7 @@ struct TimeRule {
             return min(max(p, 0), 1)
             
         case .hours:
+            guard totalDuration > 0 else { return 0 }
             let startOfDay = calendar.startOfDay(for: date)
             let elapsed = date.timeIntervalSince(startOfDay)
             let adjusted = elapsed - offset
@@ -125,20 +136,24 @@ struct TimeRule {
             return min(max(p, 0), 1)
             
         case .days:
+            guard totalDuration > 0 else { return 0 }
             let dayOfYear = calendar.ordinality(of: .day, in: .year, for: date) ?? 1
-            let p = Double(dayOfYear) / totalDuration
+            let elapsedDays = max(0, dayOfYear - 1)
+            let p = Double(elapsedDays) / totalDuration
             return min(max(p, 0), 1)
             
         case .year:
             let dayOfYear = calendar.ordinality(of: .day, in: .year, for: date) ?? 1
             let daysInYear = calendar.range(of: .day, in: .year, for: date)?.count ?? 365
-            let p = Double(dayOfYear) / Double(daysInYear)
+            let elapsedDays = max(0, dayOfYear - 1)
+            let p = Double(elapsedDays) / Double(daysInYear)
             return min(max(p, 0), 1)
             
         case .month:
             let dayOfMonth = calendar.component(.day, from: date)
             let daysInMonth = calendar.range(of: .day, in: .month, for: date)?.count ?? 30
-            let p = Double(dayOfMonth) / Double(daysInMonth)
+            let elapsedDays = max(0, dayOfMonth - 1)
+            let p = Double(elapsedDays) / Double(daysInMonth)
             return min(max(p, 0), 1)
             
         case .week:
@@ -146,7 +161,8 @@ struct TimeRule {
             let weekday = calendar.component(.weekday, from: date)
             // Convert: Sun=1 → 7, Mon=2 → 1, Tue=3 → 2, ...
             let dayOfWeek = weekday == 1 ? 7 : weekday - 1
-            let p = Double(dayOfWeek) / 7.0
+            let elapsedDays = max(0, dayOfWeek - 1)
+            let p = Double(elapsedDays) / 7.0
             return min(max(p, 0), 1)
         }
     }

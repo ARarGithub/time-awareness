@@ -1,5 +1,6 @@
 import Cocoa
 import SwiftUI
+import Combine
 
 /// Manages the Dynamic Island window lifecycle, positioning, and hover/expand tracking.
 class DynamicIslandController: ObservableObject {
@@ -9,6 +10,7 @@ class DynamicIslandController: ObservableObject {
     private var trackingMonitor: Any?
     private var globalMoveMonitor: Any?
     private var localMoveMonitor: Any?
+    private var stateCancellable: AnyCancellable?
     /// Throttle mouse move callbacks to ~60fps
     private var lastMouseMoveTime: CFAbsoluteTime = 0
     private let mouseMoveThrottleInterval: CFAbsoluteTime = 1.0 / 60.0  // ~16ms
@@ -31,6 +33,7 @@ class DynamicIslandController: ObservableObject {
     init() {
         setupWindow()
         setupMouseTracking()
+        observeStateChanges()
         
         NotificationCenter.default.addObserver(
             self,
@@ -48,6 +51,7 @@ class DynamicIslandController: ObservableObject {
     }
     
     deinit {
+        stateCancellable?.cancel()
         if let monitor = trackingMonitor {
             NSEvent.removeMonitor(monitor)
         }
@@ -127,20 +131,57 @@ class DynamicIslandController: ObservableObject {
     // MARK: - Mouse Tracking
     
     private func setupMouseTracking() {
-        // Global mouse move monitor (when our window doesn't have focus)
-        globalMoveMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged]) { [weak self] event in
-            self?.handleMouseMove()
-        }
-        
-        // Local mouse move monitor (when our window has focus)
-        localMoveMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged]) { [weak self] event in
-            self?.handleMouseMove()
-            return event
-        }
+        updateMoveMonitors(for: viewModel.state)
         
         // Click monitor for expanding
         trackingMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] event in
             self?.handleGlobalClick(event)
+        }
+    }
+
+    private func observeStateChanges() {
+        stateCancellable = viewModel.$state
+            .removeDuplicates()
+            .sink { [weak self] state in
+                self?.updateMoveMonitors(for: state)
+            }
+    }
+
+    private func updateMoveMonitors(for state: IslandState) {
+        // Settings mode does not auto-collapse on hover changes, so move tracking is unnecessary.
+        if state == .settings {
+            removeGlobalMoveMonitor()
+            removeLocalMoveMonitor()
+            return
+        }
+
+        if globalMoveMonitor == nil {
+            globalMoveMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved]) { [weak self] _ in
+                self?.handleMouseMove()
+            }
+        }
+
+        // Keep local monitor enabled for non-settings states so hover detection
+        // still works while this app is active.
+        if localMoveMonitor == nil {
+            localMoveMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved]) { [weak self] event in
+                self?.handleMouseMove()
+                return event
+            }
+        }
+    }
+
+    private func removeGlobalMoveMonitor() {
+        if let monitor = globalMoveMonitor {
+            NSEvent.removeMonitor(monitor)
+            globalMoveMonitor = nil
+        }
+    }
+
+    private func removeLocalMoveMonitor() {
+        if let monitor = localMoveMonitor {
+            NSEvent.removeMonitor(monitor)
+            localMoveMonitor = nil
         }
     }
     

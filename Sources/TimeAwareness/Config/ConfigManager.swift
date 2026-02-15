@@ -71,8 +71,10 @@ class ConfigManager {
     
     /// Save the current config to disk
     func save(_ newConfig: AppConfig) {
-        config = newConfig
-        let yamlString = newConfig.toYAML()
+        var normalized = newConfig
+        normalized.bars = makeBarNamesUnique(normalized.bars)
+        config = normalized
+        let yamlString = normalized.toYAML()
         do {
             try yamlString.write(to: configFileURL, atomically: true, encoding: .utf8)
         } catch {
@@ -85,6 +87,32 @@ class ConfigManager {
     var configFilePath: String {
         configFileURL.path
     }
+
+    private func makeBarNamesUnique(_ bars: [BarConfig]) -> [BarConfig] {
+        var seenNames: Set<String> = []
+
+        return bars.map { bar in
+            var updated = bar
+            let trimmed = updated.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            let baseName = trimmed.isEmpty ? "bar" : trimmed
+
+            if !seenNames.contains(baseName) {
+                updated.name = baseName
+                seenNames.insert(baseName)
+                return updated
+            }
+
+            var suffix = 1
+            var candidate = "\(baseName)_\(suffix)"
+            while seenNames.contains(candidate) {
+                suffix += 1
+                candidate = "\(baseName)_\(suffix)"
+            }
+            updated.name = candidate
+            seenNames.insert(candidate)
+            return updated
+        }
+    }
 }
 
 // MARK: - Notification
@@ -95,16 +123,19 @@ extension Notification.Name {
 
 // MARK: - Helpers
 
-/// Safely extract a CGFloat from a Yams-parsed value (may be Int or Double)
-private func yamlCGFloat(_ value: Any?) -> CGFloat? {
-    if let d = value as? Double { return CGFloat(d) }
-    if let i = value as? Int { return CGFloat(i) }
+private func nodeValue(for key: String, in mapping: Node.Mapping) -> Node? {
+    mapping.first(where: { $0.key == Node(key) })?.value
+}
+
+private func nodeCGFloat(_ node: Node?) -> CGFloat? {
+    if let d = node?.float { return CGFloat(d) }
+    if let i = node?.int { return CGFloat(i) }
     return nil
 }
 
-private func yamlDouble(_ value: Any?) -> Double? {
-    if let d = value as? Double { return d }
-    if let i = value as? Int { return Double(i) }
+private func nodeDouble(_ node: Node?) -> Double? {
+    if let d = node?.float { return d }
+    if let i = node?.int { return Double(i) }
     return nil
 }
 
@@ -221,29 +252,27 @@ struct AppConfig: Equatable {
     // MARK: - YAML Parsing
     
     static func from(yaml: String) throws -> AppConfig {
-        guard let dict = try Yams.load(yaml: yaml) as? [String: Any] else {
+        guard let node = try Yams.compose(yaml: yaml),
+              case .mapping(let rootMapping) = node else {
             return .defaultConfig
         }
         
         // Parse bars — use Yams Node API to preserve user-defined ordering
         var bars: [BarConfig] = []
-        if let node = try Yams.compose(yaml: yaml),
-           case .mapping(let rootMapping) = node,
-           let barsNode = rootMapping.first(where: { $0.key == Node("bars") })?.value,
+        if let barsNode = nodeValue(for: "bars", in: rootMapping),
            case .mapping(let barsMapping) = barsNode {
             for (keyNode, valueNode) in barsMapping {
                 guard let name = keyNode.string else { continue }
                 if case .mapping(let barMapping) = valueNode {
-                    let rule = barMapping.first(where: { $0.key == Node("rule") })?.value.string ?? Defaults.barRule
-                    let color = barMapping.first(where: { $0.key == Node("color") })?.value.string ?? Defaults.barColor
-                    let thicknessVal = barMapping.first(where: { $0.key == Node("thickness") })?.value
-                    let thickness = yamlCGFloat(thicknessVal?.int ?? thicknessVal?.float) ?? Defaults.barThickness
-                    let segmented = barMapping.first(where: { $0.key == Node("segmented") })?.value.bool ?? Defaults.barSegmented
-                    let segmentsVal = barMapping.first(where: { $0.key == Node("segments") })?.value
+                    let rule = nodeValue(for: "rule", in: barMapping)?.string ?? Defaults.barRule
+                    let color = nodeValue(for: "color", in: barMapping)?.string ?? Defaults.barColor
+                    let thickness = nodeCGFloat(nodeValue(for: "thickness", in: barMapping)) ?? Defaults.barThickness
+                    let segmented = nodeValue(for: "segmented", in: barMapping)?.bool ?? Defaults.barSegmented
+                    let segmentsVal = nodeValue(for: "segments", in: barMapping)
                     let segments = segmentsVal?.int ?? Defaults.barSegments
-                    let notify = barMapping.first(where: { $0.key == Node("notify") })?.value.bool ?? Defaults.barNotify
-                    let showInIdle = barMapping.first(where: { $0.key == Node("show_in_idle") })?.value.bool ?? Defaults.barShowInIdle
-                    let showInExpanded = barMapping.first(where: { $0.key == Node("show_in_expanded") })?.value.bool ?? Defaults.barShowInExpanded
+                    let notify = nodeValue(for: "notify", in: barMapping)?.bool ?? Defaults.barNotify
+                    let showInIdle = nodeValue(for: "show_in_idle", in: barMapping)?.bool ?? Defaults.barShowInIdle
+                    let showInExpanded = nodeValue(for: "show_in_expanded", in: barMapping)?.bool ?? Defaults.barShowInExpanded
                     bars.append(BarConfig(name: name, rule: rule, color: color, thickness: thickness, segmented: segmented, segments: segments, notify: notify, showInIdle: showInIdle, showInExpanded: showInExpanded))
                 } else {
                     bars.append(BarConfig(name: name, rule: Defaults.barRule, color: Defaults.barColor, thickness: Defaults.barThickness, segmented: Defaults.barSegmented, segments: Defaults.barSegments, notify: Defaults.barNotify, showInIdle: Defaults.barShowInIdle, showInExpanded: Defaults.barShowInExpanded))
@@ -257,25 +286,26 @@ struct AppConfig: Equatable {
         
         // Parse animation
         var animation = AnimationConfig.defaultAnimation
-        if let animDict = dict["animation"] as? [String: Any] {
-            if let resp = yamlDouble(animDict["expand_spring_response"]) {
+        if let animNode = nodeValue(for: "animation", in: rootMapping),
+           case .mapping(let animMapping) = animNode {
+            if let resp = nodeDouble(nodeValue(for: "expand_spring_response", in: animMapping)) {
                 animation.expandSpringResponse = resp
             }
-            if let damp = yamlDouble(animDict["expand_spring_damping"]) {
+            if let damp = nodeDouble(nodeValue(for: "expand_spring_damping", in: animMapping)) {
                 animation.expandSpringDamping = damp
             }
-            if let dur = yamlDouble(animDict["bar_animation_duration"]) {
+            if let dur = nodeDouble(nodeValue(for: "bar_animation_duration", in: animMapping)) {
                 animation.barAnimationDuration = dur
             }
         }
         
         // Parse top-level display settings
-        let barLength = yamlCGFloat(dict["bar_length"]) ?? Defaults.barLength
-        let barLengthExpanded = yamlCGFloat(dict["bar_length_expanded"]) ?? Defaults.barLengthExpanded
-        let nameSize = yamlCGFloat(dict["name_size"]) ?? Defaults.nameSize
-        let timeTextSize = yamlCGFloat(dict["time_text_size"]) ?? Defaults.timeTextSize
-        let timeFormat = (dict["time_format"] as? String) ?? Defaults.timeFormat
-        let timeShowSeconds = (dict["time_show_seconds"] as? Bool) ?? Defaults.timeShowSeconds
+        let barLength = nodeCGFloat(nodeValue(for: "bar_length", in: rootMapping)) ?? Defaults.barLength
+        let barLengthExpanded = nodeCGFloat(nodeValue(for: "bar_length_expanded", in: rootMapping)) ?? Defaults.barLengthExpanded
+        let nameSize = nodeCGFloat(nodeValue(for: "name_size", in: rootMapping)) ?? Defaults.nameSize
+        let timeTextSize = nodeCGFloat(nodeValue(for: "time_text_size", in: rootMapping)) ?? Defaults.timeTextSize
+        let timeFormat = nodeValue(for: "time_format", in: rootMapping)?.string ?? Defaults.timeFormat
+        let timeShowSeconds = nodeValue(for: "time_show_seconds", in: rootMapping)?.bool ?? Defaults.timeShowSeconds
         
         return AppConfig(bars: bars, animation: animation, barLength: barLength, barLengthExpanded: barLengthExpanded, nameSize: nameSize, timeTextSize: timeTextSize, timeFormat: timeFormat, timeShowSeconds: timeShowSeconds)
     }
